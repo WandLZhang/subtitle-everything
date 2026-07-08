@@ -20,12 +20,11 @@ Taste: elite narrative (Hunter tier) **or** flat-out funny, adult-entertaining.
 - **銀魂 (Gintama)** — 316 — #1 most-watched on the whole site
 - **齊木楠雄的災難 (Saiki K.)** — 24 — deadpan gem
 - **Keroro軍曹 (Sgt. Frog)** — 358
-- **一拳超人 (One Punch Man) S1** — 12 — funny + elite action
 - **IQ博士 (Dr. Slump)** — 243
 - **我們這一家 (Atashinchi)** — 331
 
 ### Watched / skip
-~~龍珠 / Z / GT / 超 / 改~~ · ~~火影忍者 (all)~~ · ~~BLEACH~~ · ~~鬼滅之刃~~ · ~~咒術迴戰~~ · ~~進擊的巨人~~ · ~~鋼之鍊金術師 (FA / S1)~~ · ~~排球少年 (Haikyuu)~~ · ~~死亡筆記 (Death Note)~~ · ~~新世紀福音戰士 (Evangelion)~~ · ~~寵物小精靈 (Pokémon)~~ · ~~美少女戰士 (Sailor Moon — "boring")~~ · ~~遊戲王 (Yu-Gi-Oh)~~
+~~龍珠 / Z / GT / 超 / 改~~ · ~~火影忍者 (all)~~ · ~~BLEACH~~ · ~~鬼滅之刃~~ · ~~咒術迴戰~~ · ~~進擊的巨人~~ · ~~鋼之鍊金術師 (FA / S1)~~ · ~~排球少年 (Haikyuu)~~ · ~~死亡筆記 (Death Note)~~ · ~~新世紀福音戰士 (Evangelion)~~ · ~~寵物小精靈 (Pokémon)~~ · ~~美少女戰士 (Sailor Moon — "boring")~~ · ~~遊戲王 (Yu-Gi-Oh)~~ · ~~一拳超人 (One Punch Man)~~
 
 ## Full catalog (461 titles, by on-site popularity)
 
