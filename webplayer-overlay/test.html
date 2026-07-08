@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>srt-overlay test</title>
+<style>
+  body{margin:0;background:#0b0b0b;color:#ddd;font-family:system-ui,sans-serif}
+  header{padding:8px 12px;background:#151515;font-size:13px;line-height:1.6}
+  #status{color:#9fe}
+  video{width:100%;max-height:78vh;background:#000;display:block}
+  input{color:#ddd}
+</style></head>
+<body>
+<header>
+  <b>srt-overlay test</b> — pick any local video; it overlays the built-in sample 口語 srt +
+  an on-device English translation.<br>
+  <input id="file" type="file" accept="video/*">
+  <span id="status">status: waiting for a video…</span>
+</header>
+<video id="v" controls></video>
+<script src="overlay.js"></script>
+<script>
+// self-contained: inline sample srt so no fetch/CORS needed; exercises the real logic.
+const SAMPLE = `1
+00:00:01,000 --> 00:00:03,000
+你好，今日過得點呀？
+
+2
+00:00:03,500 --> 00:00:06,000
+我啱啱食完晏晝。
+
+3
+00:00:06,500 --> 00:00:09,000
+今日天氣真係好好。`;
+
+const { parseSrt, cueAtMs, translateCues, onDeviceTranslator } = self.srtOverlay;
+const v = document.getElementById('v'), status = document.getElementById('status');
+const file = document.getElementById('file');
+
+const box = document.createElement('div');
+box.style.cssText = 'position:fixed;left:50%;bottom:12%;transform:translateX(-50%);z-index:99;max-width:86%;text-align:center;pointer-events:none';
+const mk=(c,s)=>{const d=document.createElement('div');d.style.cssText='display:inline-block;margin:2px;padding:2px 10px;background:rgba(0,0,0,.6);border-radius:6px;color:'+c+';font-size:'+s+'px;text-shadow:0 2px 4px #000';return d;};
+const zh=mk('#7fd7ff',26), en=mk('#ffd479',20);
+const w1=document.createElement('div');w1.appendChild(zh);const w2=document.createElement('div');w2.appendChild(en);
+box.append(w1,w2);document.body.appendChild(box);
+
+let cues = parseSrt(SAMPLE);
+status.textContent = 'status: parsed ' + cues.length + ' cues; checking on-device Translator…';
+
+(async () => {
+  const t = await onDeviceTranslator('zh-Hant','en');
+  if (t) {
+    try { await translateCues(cues, t); status.textContent = 'status: ✅ on-device Translator worked — ' + cues.length + ' cues translated. Play the video.'; }
+    catch (e) { status.textContent = 'status: ⚠️ Translator errored: ' + e + ' — showing source only.'; }
+  } else {
+    cues.forEach(c => c.en = '[on-device Translator unavailable in this browser]');
+    status.textContent = 'status: ❌ on-device Translator NOT available (needs recent Chrome + enabled) — source shown, English stubbed.';
+  }
+})();
+
+file.onchange = () => { if (file.files[0]) v.src = URL.createObjectURL(file.files[0]); };
+v.addEventListener('timeupdate', () => {
+  const c = cueAtMs(cues, v.currentTime * 1000);
+  zh.textContent = c ? c.text : ''; en.textContent = c ? (c.en||'') : '';
+  w1.style.visibility = c && c.text ? 'visible':'hidden';
+  w2.style.visibility = c && c.en ? 'visible':'hidden';
+});
+</script>
+</body></html>

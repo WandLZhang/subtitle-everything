@@ -21,3 +21,6 @@ __pycache__/
 *api*key*
 *.key
 .DS_Store
+
+# overlay test fixture (neutral, non-copyrighted)
+!webplayer-overlay/sample.srt
