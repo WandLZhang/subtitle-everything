@@ -1,6 +1,7 @@
 # Access the artifacts & play the movie
 
-Subtitle artifacts live in a **private GCS bucket** (not in git). For 分手100次:
+Subtitle artifacts live in a **private, IAM-gated GCS bucket** (not in git — the
+bucket name is public here, but nobody can read it without granted access). For 分手100次:
 
 ```
 gs://wz-qwen-test-canto-subs/fensau100/subtitles/
