@@ -23,4 +23,4 @@ __pycache__/
 .DS_Store
 
 # overlay test fixture (neutral, non-copyrighted)
-!webplayer-overlay/sample.srt
+!webplayer-w-captions/sample.srt

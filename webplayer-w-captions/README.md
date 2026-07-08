@@ -1,4 +1,4 @@
-# webplayer-overlay
+# webplayer-w-captions
 
 Overlay an **external 口語 SRT** (e.g. from [CantoCaptions](https://github.com/notHulK11/CantoCaptions))
 plus a **live English translation** onto *any* web video player (hkanime, etc.) —
