@@ -1,0 +1,23 @@
+# Artifacts derived from a copyrighted film — live ONLY in the private GCS bucket
+output/
+*.srt
+*.vtt
+*.mp4
+*.webm
+*.wav
+*.png
+
+# Upstream tools, fetched at setup time (see pipeline/ scripts)
+vendor/
+cantocaptions-ai/
+canto-subtitle-cleaner/
+CantoCaptions/
+
+# Env / secrets / noise — never publish
+.venv/
+__pycache__/
+*.log
+*token*
+*api*key*
+*.key
+.DS_Store

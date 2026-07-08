@@ -1,0 +1,11 @@
+# Character / term name-map for AI-translate-canto-subs, to keep names consistent
+# in the English track. Fill in per film. Left/right = Chinese form : English rendering.
+#
+# Film: 分手100次 / Break Up 100 (2014, HK romantic comedy).
+# NOTE: verify the on-screen Chinese names before trusting these — placeholders below.
+characters:
+  # "森": "Sam"          # Ekin Cheng's character (verify)
+  # "芭芭拉": "Barbara"   # Chrissie Chau's character (verify)
+
+terms:
+  # "分手100次": "Break Up 100"

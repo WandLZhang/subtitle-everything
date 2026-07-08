@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="yue">
+<head>
+<meta charset="utf-8">
+<title>canto-subs player</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0b0b;color:#ddd;font-family:system-ui,sans-serif}
+  .wrap{display:flex;flex-direction:column;height:100%}
+  header{padding:6px 12px;font-size:13px;background:#151515;line-height:1.5}
+  header b{color:#fff}.k{color:#7fd7ff}.e{color:#ffd479}
+  video{flex:1;width:100%;min-height:0;background:#000}
+  video::cue{font-size:24px;background:rgba(0,0,0,.5)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <b id="title"></b> &nbsp; <span class="k">口語 (ASR, top)</span> ·
+    <span class="e">English (below)</span> · film's burned-in SWC stays at the bottom.
+  </header>
+  <video id="v" controls></video>
+</div>
+<script>
+  // Reusable: open  player.html?stem=fensau100  with these files alongside it:
+  //   <stem>.mp4  ·  <stem>.zh-HK-yue.vtt  ·  <stem>.en.vtt
+  const stem = new URLSearchParams(location.search).get('stem') || 'fensau100';
+  document.getElementById('title').textContent = stem;
+  const v = document.getElementById('v');
+  const src = document.createElement('source'); src.src = stem + '.mp4'; src.type = 'video/mp4'; v.appendChild(src);
+  const addTrack = (lang, label, file, def) => {
+    const t = document.createElement('track');
+    t.kind = 'subtitles'; t.srclang = lang; t.label = label; t.src = file; t.default = !!def;
+    v.appendChild(t);
+  };
+  addTrack('yue', '口語 (ASR)', stem + '.zh-HK-yue.vtt', true);
+  addTrack('en',  'English',    stem + '.en.vtt',        false);
+  const showBoth = () => { for (const t of v.textTracks) t.mode = 'showing'; };
+  v.addEventListener('loadeddata', showBoth);
+  setTimeout(showBoth, 1200);
+</script>
+</body>
+</html>
