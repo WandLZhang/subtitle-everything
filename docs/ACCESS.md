@@ -43,12 +43,16 @@ Our **口語** shows at the top (blue), **English** just below, and the film's b
 > Plain `python -m http.server` will NOT let you seek (it ignores HTTP Range) — use the
 > provided `player/serve.py`.
 
-## Verify fidelity vs the film's SWC (optional v2)
-OCR the burned-in SWC and diff it cue-by-cue against the 口語 track:
+## Verify fidelity vs the film's SWC
+The SWC is **burned-in** (pixels), not a subtitle stream — so tools like sub-convert
+(PGS/Blu-ray) don't apply. Use `pipeline/04_fidelity_check.py`: it samples frames, OCRs
+the SWC band with a Gemini vision model, and classifies each 口語 line against it.
 ```bash
-# on the GPU VM (PaddleOCR needs the L4):
-#   git clone https://github.com/leuchthelp/sub-convert && ...OCR the SWC band...
-#   diff against fensau100.zh-HK-yue.srt at matching timestamps
+GOOGLE_CLOUD_PROJECT=my-proj python pipeline/04_fidelity_check.py \
+    --srt output/fensau100.zh-HK-yue.srt --video output/fensau100.mp4 --samples 48
 ```
-Divergences fall into: expected 書面→口語 rewrites (是→係, 他→佢) vs genuine ASR
-homophone errors — the latter feed cantocaptions-ai `--reference_subtitle` to fix.
+**Caveat — divergence ≠ error.** HK subs paraphrase/condense fast speech into terse
+書面語, and frame sampling has timing offset vs the sub display, so a chunk of flagged
+"deviations" are not ASR mistakes. Treat the faithful-% as a *conservative floor*. To
+certify line-level ASR accuracy, spot-check the flagged timestamps against the audio,
+or run a second-ASR (whisper) cross-check via cantocaptions-ai `--ensemble_model whisper`.
