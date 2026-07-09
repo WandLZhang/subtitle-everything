@@ -6,10 +6,13 @@ import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
 import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -136,15 +139,35 @@ class CaptionOverlay(private val ctx: Context) {
         return sb
     }
 
+    private fun toneColor(syllable: String): Int {
+        val hex = when (syllable.trim().lastOrNull()) {
+            '1' -> "#E15A5A"; '2' -> "#E6A13A"; '3' -> "#3FAE4F"
+            '4' -> "#5A8FE1"; '5' -> "#B06FE0"; '6' -> "#9AA0A6"
+            else -> "#C9CCD1"
+        }
+        return Color.parseColor(hex)
+    }
+
     private fun showPopup(word: String, reading: String) {
         val entries = Dict.lookup(word)
         if (entries.isEmpty()) { popup.visibility = View.GONE; return }
-        val sb = StringBuilder(word)
+        val sb = SpannableStringBuilder()
+        val hStart = sb.length
+        sb.append(word)
+        sb.setSpan(StyleSpan(android.graphics.Typeface.BOLD), hStart, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         for (e in entries.take(4)) {
+            sb.append("\n")
             val r = if (reading == "pinyin") e.py else e.jy.ifBlank { e.py }
-            sb.append("\n").append(r).append("   ").append(e.defs.take(3).joinToString("; "))
+            for (syl in r.split(" ")) {
+                if (syl.isBlank()) continue
+                val s = sb.length
+                sb.append(syl)
+                sb.setSpan(ForegroundColorSpan(toneColor(syl)), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                sb.append(" ")
+            }
+            sb.append("  ").append(e.defs.take(3).joinToString("; "))
         }
-        popup.text = sb.toString()
+        popup.text = sb
         popup.visibility = View.VISIBLE
     }
 
