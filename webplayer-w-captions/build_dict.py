@@ -146,14 +146,16 @@ def build():
             n_supp += 1
     print(f"  + jyutping back-filled : {n_fill} (unique) + {n_supp} (supplement)")
 
-    # index by traditional headword only (HK cues are traditional); store minimal
-    # records ({py,jy,d}) — the headword key already is the word, so t/s are dropped.
+    # index by BOTH traditional and simplified headword, so lookups hit whether the ASR
+    # output is trad (Cantonese, post-OpenCC) or simplified (Mandarin, raw). Minimal
+    # records ({py,jy,d}); the headword key already is the word, so t/s are dropped.
     entries = {}
     for e in merged.values():
         rec = {"py": e["py"], "jy": e["jy"], "d": e["d"]}
-        lst = entries.setdefault(e["t"], [])
-        if rec not in lst:
-            lst.append(rec)
+        for hw in {e["t"], e["s"]}:
+            lst = entries.setdefault(hw, [])
+            if rec not in lst:
+                lst.append(rec)
 
     out = {"version": VERSION, "_license": LICENSE, "entries": entries}
 

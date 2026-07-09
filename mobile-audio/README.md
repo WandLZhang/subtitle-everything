@@ -1,12 +1,18 @@
 # mobile-audio
 
-Live **Cantonese captions for any audio playing on your Android phone** — podcasts, hkanime in
-a browser, YouTube — captured from the phone's **internal audio** (not the mic), transcribed
-**on-device** (SenseVoice), shown in a floating overlay with a **tap-a-word dictionary**
-(jyutping/pinyin + English) and an **optional Gemini English line**.
+Live **Cantonese / Mandarin / Japanese captions for any audio playing on your Android phone**
+— podcasts, hkanime in a browser, YouTube — captured from the phone's **internal audio** (not
+the mic), transcribed **on-device** (SenseVoice, the multilingual zh-en-ja-ko-yue model), shown
+in a **streaming** floating overlay (partials while speaking + the last 2 finalized lines) with a
+**tap-a-word dictionary** and an **optional Gemini English line**. A per-session **transcript** is
+saved and shareable.
+
+- **Cantonese** → HK-traditional, tap-word gives **jyutping** (toggle pinyin) + English (CC-CEDICT/CC-Canto).
+- **Mandarin** → **pinyin** + English (same dict, both trad/simp keyed).
+- **Japanese** → **kana reading** + English (**JMdict**).
 
 Part of **[subtitle-everything](../README.md)**. Android's built-in Live Caption has no
-Cantonese; Live Transcribe is mic-only. This fills that gap.
+Cantonese/these languages; Live Transcribe is mic-only. This fills that gap.
 
 ## Install (no Android Studio needed)
 1. On the phone, download **`app-debug.apk`** from the repo's

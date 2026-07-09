@@ -41,9 +41,11 @@ class CaptionOverlay(private val ctx: Context) {
     private val history = ArrayDeque<Line>()   // up to 2 finalized lines
     private var current: Line? = null          // the streaming (partial) line
     private var reading = "jyut"
+    private var lang = "yue"
     private var seq = 0
 
     fun setReading(r: String) { reading = r }
+    fun setLang(l: String) { lang = l }
 
     fun show() {
         if (shown) return
@@ -194,13 +196,24 @@ class CaptionOverlay(private val ctx: Context) {
         sb.setSpan(StyleSpan(Typeface.BOLD), hs, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         for (e in entries.take(4)) {
             sb.append("\n")
-            val r = if (reading == "pinyin") e.py else e.jy.ifBlank { e.py }
-            for (syl in r.split(" ")) {
-                if (syl.isBlank()) continue
+            val r = when (lang) {
+                "ja" -> e.r
+                "zh" -> e.py
+                else -> if (reading == "pinyin") e.py else e.jy.ifBlank { e.py }
+            }
+            if (lang == "ja") {
+                // kana has no tones — show the reading plain
                 val s = sb.length
-                sb.append(syl)
-                sb.setSpan(ForegroundColorSpan(toneColor(syl)), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                sb.append(" ")
+                sb.append(r)
+                sb.setSpan(ForegroundColorSpan(Color.parseColor("#C9CCD1")), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            } else {
+                for (syl in r.split(" ")) {
+                    if (syl.isBlank()) continue
+                    val s = sb.length
+                    sb.append(syl)
+                    sb.setSpan(ForegroundColorSpan(toneColor(syl)), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    sb.append(" ")
+                }
             }
             sb.append("  ").append(e.defs.take(3).joinToString("; "))
         }

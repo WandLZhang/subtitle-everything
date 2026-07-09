@@ -28,6 +28,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var englishCheck: CheckBox
     private lateinit var jyutRadio: RadioButton
     private lateinit var pinyinRadio: RadioButton
+    private lateinit var langYue: RadioButton
+    private lateinit var langZh: RadioButton
+    private lateinit var langJa: RadioButton
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val projLauncher =
@@ -52,10 +55,18 @@ class MainActivity : AppCompatActivity() {
         englishCheck = findViewById(R.id.english_enabled)
         jyutRadio = findViewById(R.id.reading_jyut)
         pinyinRadio = findViewById(R.id.reading_pinyin)
+        langYue = findViewById(R.id.lang_yue)
+        langZh = findViewById(R.id.lang_zh)
+        langJa = findViewById(R.id.lang_ja)
 
         keyEdit.setText(Prefs.geminiKey(this))
         englishCheck.isChecked = Prefs.english(this)
         if (Prefs.reading(this) == "pinyin") pinyinRadio.isChecked = true else jyutRadio.isChecked = true
+        when (Prefs.lang(this)) {
+            "zh" -> langZh.isChecked = true
+            "ja" -> langJa.isChecked = true
+            else -> langYue.isChecked = true
+        }
 
         findViewById<Button>(R.id.start_button).setOnClickListener { startCaptions() }
         findViewById<Button>(R.id.stop_button).setOnClickListener { stopCaptions() }
@@ -68,6 +79,7 @@ class MainActivity : AppCompatActivity() {
         Prefs.setGeminiKey(this, keyEdit.text.toString())
         Prefs.setEnglish(this, englishCheck.isChecked)
         Prefs.setReading(this, if (pinyinRadio.isChecked) "pinyin" else "jyut")
+        Prefs.setLang(this, when { langZh.isChecked -> "zh"; langJa.isChecked -> "ja"; else -> "yue" })
     }
 
     private fun requestBasicPermissions() {

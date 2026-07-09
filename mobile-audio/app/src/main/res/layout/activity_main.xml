@@ -56,6 +56,40 @@
             android:textStyle="bold"
             android:paddingBottom="8dp" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Listening language" />
+
+        <RadioGroup
+            android:id="@+id/lang_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="8dp">
+
+            <RadioButton
+                android:id="@+id/lang_yue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Cantonese" />
+
+            <RadioButton
+                android:id="@+id/lang_zh"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Mandarin" />
+
+            <RadioButton
+                android:id="@+id/lang_ja"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Japanese" />
+        </RadioGroup>
+
         <CheckBox
             android:id="@+id/english_enabled"
             android:layout_width="match_parent"

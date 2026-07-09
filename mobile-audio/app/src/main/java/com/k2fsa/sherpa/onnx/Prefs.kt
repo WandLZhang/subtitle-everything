@@ -13,7 +13,11 @@ object Prefs {
     fun english(c: Context): Boolean = sp(c).getBoolean("english", false)
     fun setEnglish(c: Context, v: Boolean) = sp(c).edit().putBoolean("english", v).apply()
 
-    // "jyut" or "pinyin"
+    // "jyut" or "pinyin" (Cantonese reading style; ignored for Mandarin/Japanese)
     fun reading(c: Context): String = sp(c).getString("reading", "jyut")!!
     fun setReading(c: Context, v: String) = sp(c).edit().putString("reading", v).apply()
+
+    // listening language: "yue" (Cantonese), "zh" (Mandarin), "ja" (Japanese)
+    fun lang(c: Context): String = sp(c).getString("lang", "yue")!!
+    fun setLang(c: Context, v: String) = sp(c).edit().putString("lang", v).apply()
 }

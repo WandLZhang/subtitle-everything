@@ -57,6 +57,7 @@ class CaptureService : Service() {
     private var asr: OfflineRecognizer? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var capturing = false
+    private var lang = "yue"   // yue | zh | ja
 
     private val finalQueue = LinkedBlockingQueue<FloatArray>()
     @Volatile private var pendingPartial: FloatArray? = null
@@ -107,7 +108,9 @@ class CaptureService : Service() {
 
     private fun initAndRun() {
         try {
-            Dict.load(this)
+            lang = Prefs.lang(this)
+            overlay?.setLang(lang)
+            Dict.loadFor(this, lang)
             val p = ModelStore.paths(this)
             vad = Vad(
                 assetManager = null,
@@ -125,7 +128,7 @@ class CaptureService : Service() {
                     featConfig = getFeatureConfig(sampleRate = 16000, featureDim = 80),
                     modelConfig = OfflineModelConfig(
                         senseVoice = OfflineSenseVoiceModelConfig(
-                            model = p.senseVoice, language = "yue", useInverseTextNormalization = true
+                            model = p.senseVoice, language = lang, useInverseTextNormalization = true
                         ),
                         tokens = p.tokens, numThreads = 2
                     )
@@ -205,13 +208,13 @@ class CaptureService : Service() {
             val fin = finalQueue.poll(50, TimeUnit.MILLISECONDS)
             if (fin != null) {
                 val txt = decode(a, fin)
-                if (txt.isNotBlank()) onFinal(toTrad(txt))
+                if (txt.isNotBlank()) onFinal(toDisplay(txt))
                 continue
             }
             val p = pendingPartial ?: continue
             pendingPartial = null
             val txt = decode(a, p)
-            if (txt.isNotBlank()) overlay?.partial(toTrad(txt))
+            if (txt.isNotBlank()) overlay?.partial(toDisplay(txt))
         }
     }
 
@@ -233,7 +236,9 @@ class CaptureService : Service() {
         }
     }
 
-    private fun toTrad(s: String): String = try { ZhConverterUtil.toTraditional(s) } catch (e: Exception) { s }
+    // Cantonese → HK traditional for display + dict hits; Mandarin/Japanese shown as-is.
+    private fun toDisplay(s: String): String =
+        if (lang == "yue") try { ZhConverterUtil.toTraditional(s) } catch (e: Exception) { s } else s
 
     private fun decode(a: OfflineRecognizer, samples: FloatArray): String {
         val s = a.createStream()
