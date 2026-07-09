@@ -1,0 +1,48 @@
+name: build-mobile-audio-apk
+
+on:
+  push:
+    paths:
+      - 'mobile-audio/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+      - name: Fetch sherpa-onnx native libs
+        working-directory: mobile-audio
+        run: bash scripts/fetch-libs.sh
+
+      - name: Build debug APK
+        working-directory: mobile-audio
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-audio-debug-apk
+          path: mobile-audio/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK to a rolling release
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mobile-audio-latest
+          name: mobile-audio (latest debug build)
+          files: mobile-audio/app/build/outputs/apk/debug/app-debug.apk

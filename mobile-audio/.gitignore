@@ -1,0 +1,18 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/app/build
+/captures
+# sherpa-onnx prebuilt native libs — fetched by scripts/fetch-libs.sh or CI, not committed
+/app/src/main/jniLibs/**/*.so
+.externalNativeBuild
+.cxx
+local.properties
