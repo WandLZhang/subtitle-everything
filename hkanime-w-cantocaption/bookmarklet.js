@@ -1,4 +1,4 @@
-// webplayer-w-captions — ONE paste. Overlays an external 口語 .srt on the page's <video>,
+// hkanime-w-cantocaption — ONE paste. Overlays an external 口語 .srt on the page's <video>,
 // adds a Zhongwen-style hover dictionary (hover a word -> definition + jyutping; press r for
 // pinyin), and — if you set KEY — an English translation line via Gemini.
 //

@@ -1,4 +1,4 @@
-# webplayer-w-captions
+# hkanime-w-cantocaption
 
 Overlay an **external 口語 SRT** (e.g. from [CantoCaptions](https://github.com/notHulK11/CantoCaptions))
 onto *any* web video player (hkanime, etc.), with a **Zhongwen-style hover dictionary** and an
