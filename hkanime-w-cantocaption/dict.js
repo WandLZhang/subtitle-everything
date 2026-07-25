@@ -57,19 +57,40 @@
     document.body.appendChild(pop);
 
     const reading = e => (mode === 'py' ? e.py : e.jy) || e.py || e.jy || '';
-    const colourReading = r => r.split(' ').filter(Boolean)
-      .map(s => '<span style="color:' + toneColor(s) + '">' + s + '</span>').join(' ');
 
+    // Built from DOM nodes rather than innerHTML: sites with a Trusted Types policy
+    // (YouTube, for one) refuse innerHTML assignment outright and the popup silently dies.
     function render(m) {
-      const rows = m.entries.slice(0, 5).map(e => {
+      while (pop.firstChild) pop.removeChild(pop.firstChild);
+      const head = document.createElement('div');
+      head.textContent = m.word;
+      head.style.cssText = 'font-size:22px;font-weight:700;margin-bottom:3px';
+      pop.appendChild(head);
+      for (const e of m.entries.slice(0, 5)) {
+        const row = document.createElement('div');
+        row.style.margin = '3px 0';
         const rd = reading(e);
-        const defs = e.d.slice(0, 4).join('; ');
-        return '<div style="margin:3px 0"><span style="font-weight:600">' + (rd ? colourReading(rd) : '·') +
-          '</span> <span style="color:#c9ccd1">' + defs + '</span></div>';
-      }).join('');
-      pop.innerHTML = '<div style="font-size:22px;font-weight:700;margin-bottom:2px">' + m.word + '</div>' + rows +
-        '<div style="margin-top:5px;font-size:11px;color:#7b8087">' +
-        (mode === 'py' ? 'pinyin' : 'jyutping') + ' · press r to switch</div>';
+        if (rd) {
+          for (const syl of rd.split(' ')) {
+            if (!syl) continue;
+            const s = document.createElement('span');
+            s.textContent = syl + ' ';
+            s.style.cssText = 'font-weight:600;color:' + toneColor(syl);
+            row.appendChild(s);
+          }
+        } else {
+          const s = document.createElement('span'); s.textContent = '· '; row.appendChild(s);
+        }
+        const d = document.createElement('span');
+        d.textContent = e.d.slice(0, 4).join('; ');
+        d.style.color = '#c9ccd1';
+        row.appendChild(d);
+        pop.appendChild(row);
+      }
+      const foot = document.createElement('div');
+      foot.textContent = (mode === 'py' ? 'pinyin' : 'jyutping') + ' · press r to switch';
+      foot.style.cssText = 'margin-top:5px;font-size:11px;color:#7b8087';
+      pop.appendChild(foot);
       pop.style.display = 'block';
     }
     function place(x, y) {
