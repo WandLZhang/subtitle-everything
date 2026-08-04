@@ -7,23 +7,28 @@
 Taste: elite narrative (Hunter tier) **or** flat-out funny, adult-entertaining.
 ~~strikethrough~~ = already watched / rejected. All titles are Cantonese-dubbed (粵語).
 
+**Every pick below has a CantoCaptions 口語 srt** (count verified against the corpus 2026-07-25),
+so it works with [`hkanime-w-cantocaption/`](hkanime-w-cantocaption/) straight away. Titles with
+no 口語 track are listed under *No 口語 track* — good shows, but you'd be watching them raw.
+
 ### Amazing / narrative
-- **全職獵人 2011 (Hunter×Hunter)** — 148 eps — top pick if unwatched
-- **SPY×FAMILY 間諜家家酒** — amazing *and* funny
-- **棋靈王 (Hikaru no Go)** — 75
-- **叛逆的魯魯修 (Code Geass)** — 50 (S1+S2)
-- **植木的法則 (The Law of Ueki)** — 51 — creative described-power + funny
-- **名偵探柯南 (Detective Conan)** — 122 TV + films
+- **全職獵人 2011 (Hunter×Hunter)** — 148 eps — **148 srt, complete** — top pick if unwatched
+- **叛逆的魯魯修 (Code Geass)** — 50 (S1+S2) — **51 srt, complete**
+- **SPY×FAMILY 間諜家家酒** — amazing *and* funny — **37 srt** (covers S1+S2)
 - ~~葬送的芙莉蓮 (Frieren)~~ · ~~犬夜叉 (Inuyasha, "just OK")~~ — watched
 
 ### Funny
-- **銀魂 (Gintama)** — 316 — #1 most-watched on the whole site
-- **Keroro軍曹 (Sgt. Frog)** — 358
-- **IQ博士 (Dr. Slump)** — 243
-- **我們這一家 (Atashinchi)** — 331
+- **銀魂 (Gintama)** — 316 — **315 srt** — #1 most-watched on the whole site
+- **IQ博士 (Dr. Slump)** — 243 — **243 srt, complete**
+
+### In progress
+- **百變小櫻 MAGIC 咭 (Cardcaptor Sakura)** — 70 — **140 srt**
+
+### No 口語 track (CantoCaptions has nothing)
+~~齊木楠雄的災難 (Saiki K.)~~ · ~~Keroro軍曹 (Sgt. Frog)~~ · ~~我們這一家 (Atashinchi)~~ · ~~棋靈王 (Hikaru no Go)~~ · ~~植木的法則 (The Law of Ueki)~~ · ~~名偵探柯南 (Detective Conan)~~
 
 ### Watched / skip
-~~龍珠 / Z / GT / 超 / 改~~ · ~~火影忍者 (all)~~ · ~~BLEACH~~ · ~~鬼滅之刃~~ · ~~咒術迴戰~~ · ~~進擊的巨人~~ · ~~鋼之鍊金術師 (FA / S1)~~ · ~~排球少年 (Haikyuu)~~ · ~~死亡筆記 (Death Note)~~ · ~~新世紀福音戰士 (Evangelion)~~ · ~~寵物小精靈 (Pokémon)~~ · ~~美少女戰士 (Sailor Moon — "boring")~~ · ~~遊戲王 (Yu-Gi-Oh)~~ · ~~一拳超人 (One Punch Man)~~ · ~~齊木楠雄的災難 (Saiki K. — no CantoCaptions 口語 srt)~~
+~~龍珠 / Z / GT / 超 / 改~~ · ~~火影忍者 (all)~~ · ~~BLEACH~~ · ~~鬼滅之刃~~ · ~~咒術迴戰~~ · ~~進擊的巨人~~ · ~~鋼之鍊金術師 (FA / S1)~~ · ~~排球少年 (Haikyuu)~~ · ~~死亡筆記 (Death Note)~~ · ~~新世紀福音戰士 (Evangelion)~~ · ~~寵物小精靈 (Pokémon)~~ · ~~美少女戰士 (Sailor Moon — "boring")~~ · ~~遊戲王 (Yu-Gi-Oh)~~ · ~~一拳超人 (One Punch Man)~~
 
 ## Full catalog (461 titles, by on-site popularity)
 
