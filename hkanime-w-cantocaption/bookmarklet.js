@@ -3,7 +3,12 @@
 // pinyin), and — if you set KEY — an English translation line via Gemini.
 //
 // Edit the two consts below, then paste into the DevTools console (or save as a javascript:
-// bookmarklet). Timing off? run  window.SUB_OFFSET = -30  (seconds).
+// bookmarklet).
+//
+// Timing: community srts are timed to their own release (usually a BD), so they rarely line up
+// with a streaming cut. Use the on-screen sync bar, or run wpSync(n) the instant cue n is
+// spoken to set the offset exactly. Re-run wpSync() any time it drifts (e.g. after an OP that
+// one release keeps and the other cuts) — the offset applies from then on.
 (async () => {
   const SRT = 'https://raw.githubusercontent.com/notHulK11/CantoCaptions/main/Subtitles/Series/Dubbed%20(AI-generated)/Gintama%20(2006)/S1/%5BAI%20GEN%5D%20%5BJudas%5D%20Gintama%20-%20S01E01-E02%20(001-002).srt'; // <- the .srt to overlay
   const KEY = 'YOUR_GEMINI_API_KEY'; // optional English line (mint at https://aistudio.google.com/apikey); leave as-is for 口語 + dictionary only — no key needed
@@ -24,8 +29,25 @@
   const mk = (c, s) => { const d = document.createElement('div'); d.style.cssText = 'display:inline-block;margin:2px;padding:2px 10px;background:rgba(0,0,0,.6);border-radius:6px;color:' + c + ';font-size:' + s + 'px;text-shadow:0 2px 4px #000'; return d; };
   const zh = mk('#7fd7ff', 26), en = mk('#ffd479', 20);
   const w1 = document.createElement('div'); w1.append(zh); const w2 = document.createElement('div'); w2.append(en); box.append(w1, w2); document.body.append(box);
+  if (typeof window.SUB_OFFSET !== 'number') window.SUB_OFFSET = 0;
   const find = ms => { for (const c of cues) if (c.start <= ms && ms <= c.end) return c; return null; };
-  v.addEventListener('timeupdate', () => { const c = find((v.currentTime + (window.SUB_OFFSET || 0)) * 1000); zh.textContent = c ? c.text : ''; en.textContent = c ? (c.en || '') : ''; w1.style.visibility = c && c.text ? 'visible' : 'hidden'; w2.style.visibility = c && c.en ? 'visible' : 'hidden'; });
+  v.addEventListener('timeupdate', () => { const c = find((v.currentTime + window.SUB_OFFSET) * 1000); zh.textContent = c ? c.text : ''; en.textContent = c ? (c.en || '') : ''; w1.style.visibility = c && c.text ? 'visible' : 'hidden'; w2.style.visibility = c && c.en ? 'visible' : 'hidden'; });
+
+  // ---- sync: exact one-shot calibration, plus a click bar for nudging ----
+  // wpSync(n): run it the moment cue n is spoken and the offset is computed from that instant.
+  // Re-run any time to re-align (handles a release that cuts an OP the srt's source kept).
+  window.wpSync = (n = 1) => { window.SUB_OFFSET = +(cues[Math.max(0, n - 1)].start / 1000 - v.currentTime).toFixed(2); console.log('[wp] SUB_OFFSET =', window.SUB_OFFSET); upd(); return window.SUB_OFFSET; };
+  const bar = document.createElement('div');
+  bar.style.cssText = 'margin-top:8px;display:inline-flex;gap:6px;align-items:center;pointer-events:auto;background:rgba(0,0,0,.78);padding:7px 11px;border-radius:9px;font-family:system-ui;font-size:13px;color:#e8eaed';
+  const lbl = document.createElement('span'); const upd = () => lbl.textContent = `offset ${window.SUB_OFFSET.toFixed(1)}s`;
+  const mkb = (label, d) => { const b = document.createElement('button'); b.textContent = label; b.style.cssText = 'cursor:pointer;border:1px solid #5a5f68;background:#22252b;color:#e8eaed;border-radius:6px;padding:5px 10px;font-size:14px'; b.onmousedown = ev => { ev.preventDefault(); ev.stopPropagation(); }; b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); window.SUB_OFFSET = +(window.SUB_OFFSET + d).toFixed(2); upd(); }; return b; };
+  const h1 = document.createElement('span'); h1.textContent = 'text before voice ←'; h1.style.color = '#9aa0a6';
+  const h2 = document.createElement('span'); h2.textContent = '→ text after voice'; h2.style.color = '#9aa0a6';
+  const hideBtn = document.createElement('button'); hideBtn.textContent = '✓ hide';
+  hideBtn.style.cssText = 'cursor:pointer;border:1px solid #3fae4f;background:#1e3d24;color:#c8f0cf;border-radius:6px;padding:5px 10px;margin-left:8px;font-size:13px';
+  hideBtn.onmousedown = ev => { ev.preventDefault(); ev.stopPropagation(); };
+  hideBtn.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); bar.remove(); };
+  bar.append(h1, mkb('−5', -5), mkb('−0.5', -0.5), lbl, mkb('+0.5', 0.5), mkb('+5', 5), h2, hideBtn); upd(); box.append(bar);
 
   // ---- hover dictionary (reads the hovered char via caretRangeFromPoint; no overlay change) ----
   const isCJK = ch => { if (!ch) return false; const c = ch.codePointAt(0); return (c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff); };
