@@ -6,16 +6,54 @@ onto *any* web video player (hkanime, etc.), with a **Zhongwen-style hover dicti
 caption already exists, so no ASR/OCR is needed. **Replaces Substital.**
 
 ## Use — one paste
-1. Start playback on the video page (e.g. hkanime Gintama).
-2. Open [`bookmarklet.js`](bookmarklet.js), set the **`SRT`** const (and optionally **`KEY`**), copy the whole file.
+1. Start playback on the hkanime episode page.
+2. Open [`bookmarklet.js`](bookmarklet.js), set **`SHOW`** and **`EP`** (and optionally **`KEY`**), copy the whole file.
 3. Paste into the DevTools console — or save it as a `javascript:` bookmarklet.
 
-You get the **口語 line** synced to the video immediately, plus:
-- **Hover any word** → a pop-up with its **English definition** and **reading** (tone-coloured);
-  press **`r`** to toggle **jyutping** (default) ⇄ **pinyin**.
-- If you set **`KEY`**, an **English translation line** fills in underneath as it plays.
+> **`EP` is the hkanime `x` number PLUS ONE** — hkanime is 0-indexed, so `/122x51` is episode 52.
 
-Timing off (community srt vs this cut)? In the console: `window.SUB_OFFSET = -30` (seconds).
+You get a **scrollable phrase strip**: earlier lines faded to the left, the current line big in the
+centre, later lines faded to the right. Plus:
+- **Hover any phrase** (including faded ones) → pop-up with **English definition** + **reading**
+  (tone-coloured); press **`r`** to toggle **jyutping** (default) ⇄ **pinyin**.
+- If you set **`KEY`**, an **English line** under the strip fills in as it plays.
+
+## Syncing — click the line you hear
+Community srts are timed to their own release (usually a BD), so they never match a stream out of
+the box. **Click the phrase in the strip that you're hearing right now** and the offset snaps to
+it. That's the whole workflow — no arithmetic, no early/late guessing. Also:
+
+| Control | Does |
+|---|---|
+| click a phrase | make it "now" (primary way to sync) |
+| ◀ earlier line / later line ▶ | step one phrase back/forward |
+| −0.5s / +0.5s | fine trim |
+| ✂ cut here | add a breakpoint — everything after it keeps its own offset |
+| ✓ hide bar | hide the controls, keep the strip |
+
+`✂ cut here` exists because some streams remove content **mid-episode**, which makes one flat
+offset impossible (see Code Geass below). Console equivalents: `wpSync(n)` while cue *n* is
+spoken, `wpCut()`, and `window.SUB_SEGMENTS` holds the breakpoints.
+
+## Shows and their quirks
+Set `SHOW` to one of these keys. Each entry builds candidate URLs and takes the first that exists,
+which is how the per-show naming mess below is absorbed. All verified against the live corpus.
+
+| `SHOW` | Series | Eps | Quirk |
+|---|---|---|---|
+| `sakura` | 百變小櫻 MAGIC 咭 · Cardcaptor Sakura | 70 | Folder holds **two** naming sets (140 files); we pin the `[AI GEN V3]` one. Don't match on episode digits alone — `E058` also appears inside CRC hashes like `[C0E058A0]`. |
+| `codegeass` | 叛逆的魯魯修 · Code Geass | 50 | hkanime runs S1+S2 as one 1–50 list; CantoCaptions splits them and **renumbers** (ep 26 = S2E01). hkanime also **cuts the ~92.6 s OP**, so the offset steps partway in — hence the default two segments. |
+| `gintama` | 銀魂 · Gintama | 316 | Split across S1–S7; filenames carry the **global** number in `(nnn)` with seasons starting at 1/50/100/151/202/253/266. Episodes 1–2 share **one combined file**. |
+| `hxh` | 全職獵人 · Hunter × Hunter 2011 | 148 | Clean 3-digit numbering, no seasons. |
+| `drslump` | IQ博士 · Dr. Slump | 243 | E001 alone has a trailing ` - AI gen` in its filename. |
+
+Adding a show: copy an entry in the `SHOWS` registry and point it at the folder in
+[CantoCaptions](https://github.com/notHulK11/CantoCaptions/tree/main/Subtitles/Series). Check
+coverage first — several popular titles have none (see [../watchlist.md](../watchlist.md)).
+
+**Merged cues:** these are AI-generated srts, and some cues bundle several sentences under one
+timestamp. The strip can only offer the whole block as one clickable unit, so clicking it syncs to
+the block's start, which may be a second or two off the sentence you actually heard.
 
 ## Hover dictionary
 Reads the hovered character with `caretRangeFromPoint` (so the overlay itself is untouched).
@@ -47,7 +85,7 @@ gzip -kf canto-dict.min.json && gcloud storage cp canto-dict.min.json.gz \
 > **Dictionary data:** CC-CEDICT and CC-Canto (© Pleco Software), both **CC-BY-SA 3.0**.
 
 ## Files
-- `bookmarklet.js` — **the one-paste tool** (overlay + hover dictionary + optional English).
+- `bookmarklet.js` — **the one-paste tool** (phrase strip + click-to-sync + hover dictionary + optional English).
 - `overlay.js` · `dict.js` — the tested logic modules (`node overlay.test.js`, `node dict.test.js`).
 - `build_dict.py` — offline dictionary builder (CC-CEDICT + CC-Canto → GCS).
 - `test.html` + `sample.srt` — local harness.
