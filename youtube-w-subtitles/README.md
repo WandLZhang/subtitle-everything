@@ -9,6 +9,17 @@ Part of **[subtitle-everything](../README.md)**. Unlike
 [`disneyplus-w-cantocaption/`](../disneyplus-w-cantocaption/), no external `.srt` is needed and
 **no timing work is needed** — the cues come from YouTube itself.
 
+## A channel that works well with this
+
+**[Let's Go Eat with Brian](https://www.youtube.com/@LetsGoEatwithBrian)** — Hong Kong food channel,
+81.7K subscribers, spoken 粵語. Its caption track is **manual `zh-HK`, not ASR**, which means neither
+of the two problems below applies: no mis-heard words, and no overlapping cues to trim. Unscripted
+conversation, so the register is closer to how people actually speak than a dubbed track is.
+
+Any channel with a manual `zh-HK` track will behave the same way. To check before you commit to a
+series, open a video and look for `"captionTracks"` in the page source — `kind: "asr"` means
+auto-generated, and its absence means a human wrote them.
+
 ## Use
 1. Open the video (CC can be off — the script toggles it on to capture the caption URL, then off again).
 2. Open [`script.js`](script.js), optionally set **`KEY`**, copy the whole file.
