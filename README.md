@@ -16,4 +16,14 @@ Public, CORS-open GCS blobs (CC-BY-SA), built by [`hkanime-w-cantocaption/build_
 - **`canto-dict`** — CC-CEDICT + CC-Canto, both traditional & simplified keyed (Cantonese jyutping + Mandarin pinyin + English).
 - **`ja-dict`** — JMdict (Japanese kana reading + English).
 
+## Check the caption kind before starting a series
+
+For anything on YouTube, whether the track is **manual** or **ASR** decides how much cleanup a series
+costs. A manual track has no mis-heard words and no overlapping cues; an auto-generated one has both,
+and no dictionary or LLM recovers a word the recogniser never heard.
+
+Open a video, search the page source for `"captionTracks"`, and look at `kind` — `"asr"` means
+auto-generated, and its absence means a human wrote them. Worked example and details in
+[`youtube-w-subtitles/`](youtube-w-subtitles/).
+
 **Watchlist:** [watchlist.md](watchlist.md) — Cantonese-dub anime catalog (hkanime, 461 titles) + watch picks, as 口語 listening source material.
