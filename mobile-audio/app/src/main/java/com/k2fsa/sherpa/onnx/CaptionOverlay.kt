@@ -258,10 +258,13 @@ class CaptionOverlay(private val ctx: Context) {
                 sb.append(r)
                 sb.setSpan(ForegroundColorSpan(Color.parseColor("#C9CCD1")), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             } else {
+                // Pinyin shows tone marks (nǐ hǎo), jyutping keeps digits (that's its standard).
+                // Colour comes from the RAW syllable — accenting removes the digit.
+                val asPinyin = lang == "zh" || (lang == "yue" && reading == "pinyin")
                 for (syl in r.split(" ")) {
                     if (syl.isBlank()) continue
                     val s = sb.length
-                    sb.append(syl)
+                    sb.append(if (asPinyin) Pinyin.accent(syl) else syl)
                     sb.setSpan(ForegroundColorSpan(toneColor(syl)), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     sb.append(" ")
                 }
