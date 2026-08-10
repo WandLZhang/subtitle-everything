@@ -67,6 +67,35 @@ object Dict {
         return 0
     }
 
+    /** Which romanisation a reading actually is, so the UI never mislabels it. */
+    data class Reading(val text: String, val composed: Boolean = false, val wrongLang: Boolean = false)
+
+    /**
+     * ~14% of headwords carry pinyin but NO jyutping (曱甴, 佛珠 …). Blindly falling back to `py`
+     * printed the MANDARIN reading tone-coloured and indistinguishable from jyutping. So: use the
+     * word's own reading, else compose it per character (佛 fat6 + 珠 zyu1 -> "fat6 zyu1"), else
+     * fall back to the other language flagged, so the popup can say which it is.
+     * Ported from lockscreen-translate, which hit this first and shares this dictionary.
+     */
+    private fun compose(word: String, jyut: Boolean): String {
+        val out = ArrayList<String>()
+        for (ch in word) {
+            val e = lookup(ch.toString()).firstOrNull() ?: return ""
+            val v = (if (jyut) e.jy else e.py).trim()
+            if (v.isEmpty()) return ""
+            out.add(v.split(" ")[0])          // one character = one syllable
+        }
+        return out.joinToString(" ")
+    }
+
+    fun readingFor(word: String, e: Entry, jyut: Boolean): Reading {
+        val own = (if (jyut) e.jy else e.py).trim()
+        if (own.isNotEmpty()) return Reading(own)
+        val c = compose(word, jyut)
+        if (c.isNotEmpty()) return Reading(c, composed = true)
+        return Reading((if (jyut) e.py else e.jy).trim(), wrongLang = true)
+    }
+
     fun lookup(word: String): List<Entry> {
         val e = entries ?: return emptyList()
         if (!e.has(word)) return emptyList()

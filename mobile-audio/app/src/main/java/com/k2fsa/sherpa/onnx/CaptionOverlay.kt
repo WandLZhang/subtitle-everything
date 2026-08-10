@@ -248,26 +248,33 @@ class CaptionOverlay(private val ctx: Context) {
         sb.setSpan(StyleSpan(Typeface.BOLD), hs, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         for (e in entries.take(4)) {
             sb.append("\n")
-            val r = when (lang) {
-                "ja" -> e.r
-                "zh" -> e.py
-                else -> if (reading == "pinyin") e.py else e.jy.ifBlank { e.py }
-            }
             if (lang == "ja") {
                 val s = sb.length
-                sb.append(r)
+                sb.append(e.r)
                 sb.setSpan(ForegroundColorSpan(Color.parseColor("#C9CCD1")), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            } else {
-                // Pinyin shows tone marks (nǐ hǎo), jyutping keeps digits (that's its standard).
-                // Colour comes from the RAW syllable — accenting removes the digit.
-                val asPinyin = lang == "zh" || (lang == "yue" && reading == "pinyin")
-                for (syl in r.split(" ")) {
-                    if (syl.isBlank()) continue
-                    val s = sb.length
-                    sb.append(if (asPinyin) Pinyin.accent(syl) else syl)
-                    sb.setSpan(ForegroundColorSpan(toneColor(syl)), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    sb.append(" ")
-                }
+                sb.append("  ").append(e.defs.take(3).joinToString("; "))
+                continue
+            }
+            // Want jyutping unless we're in pinyin mode / Mandarin. readingFor() falls back
+            // per-character before ever showing the other language, and tells us which we got.
+            val wantJyut = !(lang == "zh" || reading == "pinyin")
+            val r = Dict.readingFor(word, e, wantJyut)
+            // We got the other system iff wrongLang, so: shown-is-pinyin == (wantJyut == wrongLang)
+            val shownIsPinyin = wantJyut == r.wrongLang
+            // Pinyin shows tone marks (nǐ hǎo); jyutping keeps digits (that's its standard).
+            // Colour comes from the RAW syllable — accenting removes the digit.
+            for (syl in r.text.split(" ")) {
+                if (syl.isBlank()) continue
+                val s = sb.length
+                sb.append(if (shownIsPinyin) Pinyin.accent(syl) else syl)
+                sb.setSpan(ForegroundColorSpan(toneColor(syl)), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                sb.append(" ")
+            }
+            if (r.wrongLang && r.text.isNotBlank()) {
+                val s = sb.length
+                sb.append(if (wantJyut) "(pinyin — no jyutping)" else "(jyutping — no pinyin)")
+                sb.setSpan(ForegroundColorSpan(Color.parseColor("#7B8087")), s, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                sb.append(" ")
             }
             sb.append("  ").append(e.defs.take(3).joinToString("; "))
         }
