@@ -38,8 +38,11 @@ Readings are coloured by tone. Jyutping keeps its **digits** — that is jyutpin
 it has no diacritic convention, and Cantonese's six tones do not map onto the four pinyin marks.
 Pinyin gets real marks: `ni3 hao3` renders as `nǐ hǎo`.
 
-The dictionary (143k headwords, traditional and simplified both keyed) is fetched from public GCS on
-your first Chinese hover in a frame, never on page load, and is HTTP-cached for 24h.
+The dictionary (143k headwords, traditional and simplified both keyed) is fetched from public GCS by
+the **service worker** on your first Chinese hover, never on page load, and is HTTP-cached for 24h.
+Each hover ships back only the matched word and its per-character entries — see
+[the CSP trap](#the-csp-trap-why-it-worked-on-wikipedia-and-not-in-vscode) for why it has to work
+that way.
 
 ### When a word has no jyutping
 
@@ -109,6 +112,32 @@ body.__browserDict = true;
 
 `dict-core.test.js` models both halves of `document.open()` — listeners dropped, body replaced,
 Document reused — and asserts that `attach()` re-arms. It fails against the old guard.
+
+## The CSP trap: why it worked on Wikipedia and not in VSCode
+
+Fixing the bridge still was not enough, and the second cause is worth knowing on its own, because it
+fails **silently** — no popup, no console error in the frame you are looking at.
+
+In MV3, a content script's `fetch()` is subject to the **host page's** CSP, not the extension's. Your
+`host_permissions` do not exempt it. And a VSCode webview writes its document with:
+
+```
+Content-Security-Policy: default-src 'none'; script-src 'sha256-…' 'self'; frame-src 'self'; style-src 'unsafe-inline';
+```
+
+There is no `connect-src`, so it inherits `default-src 'none'` — **every** network request from that
+document is refused. The bridge was attaching, the hover was firing, and the dictionary fetch was
+being dropped on the floor. Wikipedia has no such restriction, which is exactly why it worked there.
+
+So the fetch lives in the service worker, which has no host page and therefore no page CSP.
+`content.js` sends `{type: 'bd-lookup', text}`; `background.js` answers with the matched word, its
+entries, and the per-character entries `readingFor()` needs to compose a missing reading. Only one
+copy of the 16 MB dictionary exists, in the worker, rather than one per frame.
+
+The general lesson: **in MV3 a content script cannot be relied on to reach the network at all.**
+Proxy through the worker by default. See
+[Improve extension security](https://developer.chrome.com/docs/extensions/develop/migrate/improve-security)
+and [Manifest V3 explained](https://extension.js.org/docs/concepts/manifest-v3).
 
 ## What it cannot do
 

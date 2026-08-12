@@ -2,7 +2,7 @@
 // Covers the three helpers inherited from hkanime-w-cantocaption/dict.js plus the two ported from
 // the Android app: tone marks (Pinyin.kt) and the reading fallback chain (Dict.kt).
 const assert = require('assert');
-const { isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, attach } = require('./dict-core.js');
+const { isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, attach, lookupIn } = require('./dict-core.js');
 
 // ---- isCJK ----
 assert.strictEqual(isCJK('喜'), true, '喜 is CJK');
@@ -73,6 +73,24 @@ assert.strictEqual(r.text, 'yue1 zha2', 'falls back to the pinyin');
 assert.strictEqual(r.wrongLang, true, '曱甴 fallback is flagged as the wrong language');
 assert.strictEqual(r.isPinyin, true, 'and is known to be pinyin, so it renders with tone marks');
 
+// ---- lookupIn: the worker -> frame payload ----
+// Must carry enough for readingFor to compose a missing reading on the other side, and no more:
+// the whole dictionary is 143k headwords and this crosses a message boundary on every hover.
+const dictFull = {
+  '佛珠': [{ py: 'fo2 zhu1', jy: '', d: ['prayer beads'] }],
+  '佛': [{ py: 'fo2', jy: 'fat6', d: ['Buddha'] }],
+  '珠': [{ py: 'zhu1', jy: 'zyu1', d: ['bead'] }],
+  '喜': [{ py: 'xi3', jy: 'hei2', d: ['to like'] }],
+};
+const hit = lookupIn(dictFull, '佛珠係');
+assert.strictEqual(hit.word, '佛珠', 'longest match wins at the hover position');
+assert.deepStrictEqual(Object.keys(hit.chars).sort(), ['佛', '珠'], 'ships only this word\'s characters');
+assert.ok(!hit.chars['喜'], 'does not ship the rest of the dictionary');
+// and the composition still works downstream from just that slice
+const composed = readingFor(hit.chars, hit.word, hit.entries[0], 'jy');
+assert.deepStrictEqual([composed.text, composed.composed], ['fat6 zyu1', true], 'composes from chars alone');
+assert.strictEqual(lookupIn(dictFull, '你好'), null, 'no match -> null');
+
 // ---- attach() must survive a document.open()/write(), which is how VSCode fills a webview ----
 // The first shipped version guarded on doc.__browserDict. document.open() unregisters every
 // listener but REUSES the Document object, so that flag survived the very event it existed to
@@ -108,4 +126,4 @@ assert.strictEqual(doc.listeners.length, first, 'attach re-arms after a rewrite 
 attach(doc, {});
 assert.strictEqual(doc.listeners.length, first, 'and does not stack duplicates on the new body either');
 
-console.log('PASS — isCJK / toneColor / fwdMatch / accent / readingFor / attach re-arm all OK');
+console.log('PASS — isCJK / toneColor / fwdMatch / accent / readingFor / lookupIn / attach re-arm all OK');

@@ -41,6 +41,19 @@
     });
   } catch (e) { /* storage unavailable in some sandboxed frames; the defaults are fine */ }
 
+  // Ask the service worker, never fetch from here. In MV3 a content script's fetch is subject to the
+  // HOST PAGE's CSP, and a VSCode webview writes its document with `default-src 'none'` and no
+  // connect-src — so the request is refused outright and the popup silently never appears. The
+  // worker has no page CSP. This was the actual reason the extension worked on Wikipedia and not here.
+  const lookup = text => new Promise(resolve => {
+    try {
+      chrome.runtime.sendMessage({ type: 'bd-lookup', text }, r => {
+        if (chrome.runtime.lastError) return resolve(null);   // worker asleep mid-flight, etc.
+        resolve(r && !r.error ? r : null);
+      });
+    } catch (e) { resolve(null); }
+  });
+
   const opts = {
     getMode: () => mode,
     setMode: m => {
@@ -48,6 +61,7 @@
       try { chrome.storage.local.set({ [MODE_KEY]: m }); } catch (e) {}
     },
     isEnabled: () => enabled,
+    lookup,
   };
 
   BrowserDict.attach(document, opts);                  // ordinary pages, and the Monaco editor

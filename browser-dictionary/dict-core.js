@@ -98,20 +98,24 @@
     return { text: ((entry && entry[other]) || '').trim(), isPinyin: other === 'py', composed: false, wrongLang: true };
   }
 
+  /**
+   * One hover's worth of dictionary result. Runs in the service worker, which owns the only copy of
+   * the dictionary; the payload has to stay small because it crosses a message boundary.
+   *
+   * `chars` carries the per-character entries for just this word, so readingFor() can still compose
+   * a missing reading (佛 fat6 + 珠 zyu1) on the other side without shipping 143k headwords.
+   */
+  function lookupIn(dict, text) {
+    const m = fwdMatch(dict, text, 0);
+    if (!m) return null;
+    const chars = {};
+    for (const ch of m.word) if (dict[ch]) chars[ch] = dict[ch];
+    return { word: m.word, entries: m.entries, chars };
+  }
+
   // ---------------------------------- browser ----------------------------------
   // Defined unconditionally, exported at the bottom, so the Node test can drive attach() against a
   // fake document. Nothing here touches a real DOM or the network until attach() is called.
-
-  let dictPromise = null;                                // one fetch per frame, on first CJK hover
-  function loadDict() {
-    if (!dictPromise) {
-      dictPromise = fetch(DICT_URL)
-        .then(r => r.json())
-        .then(j => j.entries)
-        .catch(e => { dictPromise = null; console.warn('[browser-dictionary] dictionary failed', e); return null; });
-    }
-    return dictPromise;
-  }
 
   const FONT = '"Chiron Hei HK","PingFang HK","Noto Sans HK","Microsoft JhengHei",sans-serif';
 
@@ -127,6 +131,10 @@
    *
    * opts.getMode() -> 'jy' | 'py'    opts.setMode(m)     (both optional; defaults to jyutping)
    * opts.isEnabled() -> boolean                          (optional; defaults to always on)
+   * opts.lookup(text) -> Promise<{word, entries, chars} | null>
+   *
+   * lookup is injected rather than done here, because this code frequently runs inside a document
+   * whose CSP forbids the network. See content.js.
    */
   function attach(doc, opts) {
     if (!doc) return;
@@ -138,8 +146,9 @@
     const getMode = o.getMode || (() => 'jy');
     const setMode = o.setMode || (() => {});
     const isEnabled = o.isEnabled || (() => true);
+    const lookup = o.lookup || (() => Promise.resolve(null));
 
-    let pop = null, last = null, dict = null;
+    let pop = null, last = null, pending = 0;
 
     function ensurePop() {
       if (pop && pop.isConnected) return pop;
@@ -168,7 +177,7 @@
       for (const e of m.entries.slice(0, 5)) {
         const row = doc.createElement('div');
         row.style.margin = '3px 0';
-        const r = readingFor(dict, m.word, e, mode);
+        const r = readingFor(m.chars || {}, m.word, e, mode);
         for (const syl of (r.text || '').split(' ')) {
           if (!syl) continue;
           const b = doc.createElement('b');
@@ -223,14 +232,18 @@
       if (!c || !c.node || c.node.nodeType !== 3) return hide();
       const text = c.node.nodeValue || '';
       if (!isCJK(text.charAt(c.off))) return hide();
-      if (!dict) {                                       // first CJK hover in this frame
-        loadDict().then(d => { if (d) dict = d; });
-        return;
-      }
-      const m = fwdMatch(dict, text, c.off);
-      if (!m) return hide();
-      if (!last || last.word !== m.word) { last = m; render(m); }
-      place(ev.clientX, ev.clientY);
+      const slice = text.substr(c.off, MAX_WORD);
+      const x = ev.clientX, y = ev.clientY;
+      if (last && last.slice === slice) return place(x, y);   // same word, just follow the cursor
+      const token = ++pending;
+      lookup(slice).then(m => {
+        if (token !== pending) return;                        // a newer hover already won
+        if (!m) return hide();
+        m.slice = slice;
+        last = m;
+        render(m);
+        place(x, y);
+      });
     }
 
     function onKey(ev) {
@@ -256,7 +269,7 @@
     };
   }
 
-  const API = { attach, isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, MAX_WORD, DICT_URL };
+  const API = { attach, lookupIn, isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, MAX_WORD, DICT_URL };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else globalThis.BrowserDict = API;
 })();
