@@ -10,6 +10,7 @@ your phone — in colloquial Cantonese (口語), Mandarin, Japanese, and English
 | **hkanime** + an external 口語 srt | [`hkanime-w-cantocaption/`](hkanime-w-cantocaption/) | overlay a CantoCaptions `.srt` + hover-dictionary + live English on a plain web player (one paste) |
 | **Disney+** + an external 口語 srt | [`disneyplus-w-cantocaption/`](disneyplus-w-cantocaption/) | same, hardened for Disney+: decoy `<video>` elements, fullscreen render-tree, swallowed hotkeys, per-episode sync (`wpSync()`) |
 | **Live audio on your phone** (any app) | [`mobile-audio/`](mobile-audio/) | capture the phone's internal audio → **on-device** ASR (SenseVoice) → **streaming** floating overlay in **Cantonese / Mandarin / Japanese**: tap-a-word dictionary (jyutping · pinyin · kana + defs), optional Gemini English line, last-2-line history, session transcript |
+| **Any page you read** (no video) | [`browser-dictionary/`](browser-dictionary/) | Chrome extension, installed once: hover any Chinese word for jyutping (or tone-marked pinyin) + English. A Zhongwen replacement that covers Cantonese, and works inside VSCode webviews |
 
 ## Shared dictionaries
 Public, CORS-open GCS blobs (CC-BY-SA), built by [`hkanime-w-cantocaption/build_dict.py`](hkanime-w-cantocaption/build_dict.py) / [`build_dict_ja.py`](hkanime-w-cantocaption/build_dict_ja.py) and used by **all** the overlays and the app:
