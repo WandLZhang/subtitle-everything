@@ -76,7 +76,11 @@ chrome.tabs.query({ active: true, currentWindow: true }, async tabs => {
   for (const r of rows) {
     const li = document.createElement('li');
     const state = document.createElement('span');
-    if (r.refused) set(state, 'injection refused: ' + r.refused, 'bad');
+    // Chrome's own wording for a runtime_blocked_hosts match is opaque. Name the cause instead:
+    // this is an admin policy, no extension can run here, and no change to this code will help.
+    if (r.refused && /ExtensionsSettings policy/i.test(r.refused)) {
+      set(state, 'blocked by Chrome admin policy — no extension can run here', 'bad');
+    } else if (r.refused) set(state, 'injection refused: ' + r.refused, 'bad');
     else if (!r.probe) set(state, 'no result', 'bad');
     else if (r.probe.attached) set(state, 'attached', 'ok');
     else set(state, r.probe.hasEngine ? 'engine present, not attached' : 'no content script', 'bad');

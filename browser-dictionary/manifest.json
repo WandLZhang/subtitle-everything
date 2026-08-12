@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "browser-dictionary",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Hover any Chinese word for jyutping (or tone-marked pinyin) + English. Like Zhongwen, with Cantonese, and it works inside VSCode webviews.",
   "host_permissions": [
     "<all_urls>"

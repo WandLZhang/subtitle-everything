@@ -141,10 +141,29 @@ and [Manifest V3 explained](https://extension.js.org/docs/concepts/manifest-v3).
 
 ## What it cannot do
 
+**VSCode webviews on a managed Chrome profile.** This is the big one, and no code change fixes it.
+Chrome's enterprise `ExtensionSettings` policy has a `runtime_blocked_hosts` list; a host on it cannot
+be scripted by **any** extension, and Chrome enforces that before a single line of extension code
+runs. A corp-managed profile that blocks `*.googleusercontent.com` therefore blocks every VSCode
+webview, because that is the origin they are served from:
+
+```
+injection refused: This page cannot be scripted due to an ExtensionsSettings policy.
+  — https://<uuid>.cloudworkstations.googleusercontent.com/code-oss/...
+```
+
+The toolbar popup reports this as *blocked by Chrome admin policy*. Confirm it at `chrome://policy` →
+filter `ExtensionSettings`. The only remedy is an administrator adding the host to
+`runtime_allowed_hosts`; the policy exists precisely to keep extensions off sensitive origins, so
+expect that to be declined. For the affected surfaces the realistic answer is an OS-level lookup
+(macOS Dictionary, PopClip) rather than a browser extension.
+
+What still works on such a profile: **every ordinary website**, and the **VSCode editor itself**,
+because the workbench top frame is served from the workstation host, not googleusercontent.
+
 **The integrated terminal.** code-oss loads `@xterm/addon-webgl`, so glyphs are painted to a canvas.
 There are no text nodes to hover and no DOM dictionary can ever read it. Only screen OCR would, which
-is a different tool. Everything else in the IDE — editor, Claude Code panel, previews, settings UI —
-works.
+is a different tool.
 
 ## Making it sync
 
