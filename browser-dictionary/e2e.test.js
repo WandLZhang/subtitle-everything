@@ -170,6 +170,25 @@ const check = (name, ok, detail) => {
     check('composed jyutping fat6 zyu1', popText.includes('fat6 zyu1'), JSON.stringify(popText.slice(0, 120)));
     check('composition is labelled', popText.includes('per character'));
 
+    // The popup enumerates frames with webNavigation, not executeScript's allFrames, because
+    // allFrames omits frames it could not inject into — which once made the panel report
+    // "1 of 1 attached" on a tab full of webviews. Assert the enumeration really sees the nest:
+    // top workbench + webview host + the rewritten inner frame.
+    if (swTarget) {
+      const worker = await swTarget.worker();
+      const seen = await worker.evaluate(async () => {
+        const tabs = await chrome.tabs.query({});
+        const t = tabs.find(x => x.url && x.url.includes('127.0.0.1:8801'));
+        if (!t) return null;
+        const frames = await chrome.webNavigation.getAllFrames({ tabId: t.id });
+        return frames.map(f => f.url);
+      }).catch(e => ({ err: String(e) }));
+      const urls = Array.isArray(seen) ? seen : [];
+      check('webNavigation enumerates the nested frames', urls.length >= 3,
+        urls.length ? urls.map(u => u.replace('http://127.0.0.1', '')).join(' | ') : JSON.stringify(seen));
+      check('the rewritten inner frame is enumerated', urls.some(u => u.includes('fake.html')));
+    }
+
     // control: prove the CSP really does refuse a fetch from inside that document, so we know the
     // service-worker proxy is load-bearing and not cargo cult
     const blocked = await inner.evaluate(() =>

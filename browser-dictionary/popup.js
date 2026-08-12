@@ -41,24 +41,47 @@ function probe() {
   };
 }
 
-chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+// Enumerate frames with webNavigation rather than relying on executeScript's allFrames. allFrames
+// only reports frames it could actually inject into, so a frame Chrome REFUSES to inject into simply
+// vanishes from the results — which once made this read "1 of 1 attached" on a tab full of webviews.
+// A frame we cannot reach is the single most useful thing this panel can tell you, so it must be
+// impossible for one to go unlisted.
+chrome.tabs.query({ active: true, currentWindow: true }, async tabs => {
   const tab = tabs[0];
   if (!tab) return set($('tab'), 'no active tab', 'bad');
-  chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, func: probe }, results => {
-    if (chrome.runtime.lastError) return set($('tab'), chrome.runtime.lastError.message, 'bad');
-    const frames = (results || []).map(r => r.result).filter(Boolean);
-    const live = frames.filter(f => f.attached).length;
-    set($('tab'), `${live} of ${frames.length} frame(s) attached`, live ? 'ok' : 'bad');
 
-    const list = $('frames');
-    for (const f of frames) {
-      const li = document.createElement('li');
-      const state = document.createElement('span');
-      if (f.attached) set(state, 'attached', 'ok');
-      else set(state, f.hasEngine ? 'not attached' : 'no content script', 'bad');
-      li.appendChild(state);
-      li.appendChild(document.createTextNode(' — ' + f.url.slice(0, 110)));
-      list.appendChild(li);
+  let frames;
+  try {
+    frames = await chrome.webNavigation.getAllFrames({ tabId: tab.id });
+  } catch (e) {
+    return set($('tab'), 'cannot enumerate frames — ' + e.message, 'bad');
+  }
+  if (!frames || !frames.length) return set($('tab'), 'no frames reported', 'bad');
+
+  const rows = await Promise.all(frames.map(async f => {
+    try {
+      const r = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, frameIds: [f.frameId] }, func: probe,
+      });
+      return { url: f.url, probe: r && r[0] && r[0].result };
+    } catch (e) {
+      return { url: f.url, refused: e.message };          // Chrome would not inject here
     }
-  });
+  }));
+
+  const live = rows.filter(r => r.probe && r.probe.attached).length;
+  set($('tab'), `${live} of ${rows.length} frame(s) attached`, live === rows.length ? 'ok' : 'bad');
+
+  const list = $('frames');
+  for (const r of rows) {
+    const li = document.createElement('li');
+    const state = document.createElement('span');
+    if (r.refused) set(state, 'injection refused: ' + r.refused, 'bad');
+    else if (!r.probe) set(state, 'no result', 'bad');
+    else if (r.probe.attached) set(state, 'attached', 'ok');
+    else set(state, r.probe.hasEngine ? 'engine present, not attached' : 'no content script', 'bad');
+    li.appendChild(state);
+    li.appendChild(document.createTextNode(' — ' + String(r.url).slice(0, 110)));
+    list.appendChild(li);
+  }
 });

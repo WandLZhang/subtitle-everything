@@ -186,6 +186,23 @@ It finds Chrome automatically on macOS and Linux; override with `BD_CHROME=/path
 check is a deliberate **control**: it fetches the dictionary from inside the restricted frame and
 asserts the CSP refuses it, so the service-worker proxy stays justified rather than cargo cult.
 
+## Reading the diagnosis
+
+Click the toolbar icon. The frame list is the useful part, one line per frame of the current tab:
+
+| Line | Meaning |
+|---|---|
+| `attached` | the hover popup is live in that frame |
+| `engine present, not attached` | the content script loaded but `attach()` did not bind — a bridge bug |
+| `no content script` | Chrome did not inject there at all |
+| `injection refused: …` | Chrome actively refused, with its reason |
+
+Frames are enumerated with `chrome.webNavigation.getAllFrames`, deliberately **not** with
+`executeScript`'s `allFrames`. `allFrames` only returns frames it managed to inject into, so an
+unreachable frame disappears from the results instead of being reported — which is how an early
+version of this panel claimed "1 of 1 frame(s) attached" on a tab full of webviews. A frame that
+cannot be reached is the most useful thing this panel can say, so it must be impossible to omit.
+
 ## Known data quirk
 
 曱甴 (cockroach) has no jyutping of its own, so the reading is composed per character — and CC-Canto
