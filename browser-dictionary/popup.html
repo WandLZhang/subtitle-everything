@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { width: 340px; margin: 0; padding: 12px 14px; background: #16181c; color: #e8eaed;
+         font: 13px/1.5 system-ui, -apple-system, sans-serif; }
+  h1 { font-size: 14px; margin: 0 0 10px; font-weight: 600; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
+  .row label { cursor: pointer; }
+  hr { border: 0; border-top: 1px solid #2b2f36; margin: 11px 0; }
+  .k { color: #9aa0a6; }
+  .ok { color: #6cd07f; }
+  .bad { color: #f2807a; }
+  .wait { color: #e6b95a; }
+  #frames { margin: 6px 0 0; padding: 0; list-style: none; max-height: 190px; overflow-y: auto; }
+  #frames li { padding: 4px 0; border-top: 1px solid #23262b; font-size: 12px; word-break: break-all; }
+  .hint { color: #7b8087; font-size: 11px; margin-top: 9px; }
+</style>
+</head>
+<body>
+  <h1>browser-dictionary</h1>
+
+  <div class="row">
+    <input type="checkbox" id="on"><label for="on">Enabled</label>
+  </div>
+  <div class="row">
+    <span class="k">Reading</span>
+    <input type="radio" name="mode" id="jy" value="jy"><label for="jy">jyutping</label>
+    <input type="radio" name="mode" id="py" value="py"><label for="py">pinyin</label>
+  </div>
+
+  <hr>
+
+  <div class="row"><span class="k">Dictionary</span> <span id="dict" class="wait">checking…</span></div>
+  <div class="row"><span class="k">This tab</span> <span id="tab" class="wait">checking…</span></div>
+  <ul id="frames"></ul>
+
+  <div class="hint">A frame marked <span class="bad">not attached</span> is one the hover popup is not
+    running in. Send this list if something is not working.</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

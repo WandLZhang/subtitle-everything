@@ -1,17 +1,18 @@
 {
   "manifest_version": 3,
   "name": "browser-dictionary",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Hover any Chinese word for jyutping (or tone-marked pinyin) + English. Like Zhongwen, with Cantonese, and it works inside VSCode webviews.",
-  "host_permissions": ["https://storage.googleapis.com/*"],
-  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
+  "permissions": ["storage", "scripting", "tabs"],
   "background": { "service_worker": "background.js" },
-  "action": { "default_title": "browser-dictionary — click to toggle" },
+  "action": { "default_title": "browser-dictionary", "default_popup": "popup.html" },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "all_frames": true,
       "match_about_blank": true,
+      "match_origin_as_fallback": true,
       "run_at": "document_idle",
       "js": ["dict-core.js", "content.js"]
     }

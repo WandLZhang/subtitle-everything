@@ -34,20 +34,31 @@ function dict() {
 // Registered synchronously at the top level: a listener added inside an async callback would miss
 // the very event that woke the worker.
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (!msg || msg.type !== 'bd-lookup') return;
-  dict()
-    .then(d => sendResponse(BrowserDict.lookupIn(d, msg.text)))
-    .catch(err => {
-      console.warn('[browser-dictionary] dictionary unavailable:', err);
-      sendResponse({ error: String(err) });
-    });
-  return true;                                             // keep the channel open for the async reply
+  if (!msg) return;
+
+  if (msg.type === 'bd-lookup') {
+    dict()
+      .then(d => sendResponse(BrowserDict.lookupIn(d, msg.text)))
+      .catch(err => {
+        console.warn('[browser-dictionary] dictionary unavailable:', err);
+        sendResponse({ error: String(err) });
+      });
+    return true;                                           // keep the channel open for the async reply
+  }
+
+  // Drives the popup's self-diagnosis. Forces the fetch so a CSP or network failure surfaces as a
+  // sentence in the popup instead of as a hover that quietly does nothing.
+  if (msg.type === 'bd-status') {
+    dict()
+      .then(d => sendResponse({ count: Object.keys(d).length }))
+      .catch(err => sendResponse({ error: String(err) }));
+    return true;
+  }
 });
 
-// ---- toolbar button ----
-// Click to turn the hover popup on or off everywhere, the way Zhongwen's button works. The state
-// lives in chrome.storage.local; content.js watches it, so a toggle takes effect in every open tab
-// immediately, with no reload.
+// ---- badge ----
+// The button opens popup.html, so the toggle lives there; this only mirrors the state onto the icon.
+// content.js watches the same storage key, so a toggle takes effect in every open tab with no reload.
 async function paint(on) {
   await chrome.action.setBadgeText({ text: on ? '' : 'off' });
   await chrome.action.setBadgeBackgroundColor({ color: '#6b7076' });
@@ -62,10 +73,8 @@ async function current() {
   return r[ON_KEY] !== false;                              // default on
 }
 
-chrome.action.onClicked.addListener(async () => {
-  const on = !(await current());
-  await chrome.storage.local.set({ [ON_KEY]: on });
-  await paint(on);
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes[ON_KEY]) paint(changes[ON_KEY].newValue !== false);
 });
 
 chrome.runtime.onStartup.addListener(async () => paint(await current()));

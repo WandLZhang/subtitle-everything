@@ -161,10 +161,39 @@ Unlisted means it does not appear in search and only someone with the link can i
 | `dict-core.js` | the engine — segmentation, tone marks, reading fallback, popup. Also a Node module |
 | `content.js` | per-frame wiring + the VSCode webview bridge |
 | `background.js` | the toolbar on/off button |
-| `dict-core.test.js` | `node dict-core.test.js` |
+| `popup.html` / `popup.js` | toolbar popup: on/off, reading, and a self-diagnosis |
+| `dict-core.test.js` | pure logic — `node dict-core.test.js` |
+| `e2e.test.js` | drives a real Chrome against a fake VSCode webview — see below |
 
 `dict-core.js` builds the popup from DOM nodes rather than `innerHTML`, because pages with a Trusted
 Types policy — YouTube, and VSCode webviews — reject `innerHTML` outright and the popup dies silently.
+
+## Testing
+
+Both failures above were invisible to unit tests: the code was correct in isolation and wrong in a
+browser. `e2e.test.js` loads the real extension into a real Chrome and rebuilds the webview structure
+that broke it — a cross-origin host frame, an inner frame filled by `document.open()/write()`, and the
+verbatim `default-src 'none'` CSP — then hovers a word and asserts the popup renders.
+
+```sh
+node dict-core.test.js                    # pure logic, no browser
+
+mkdir -p /tmp/bdtest && cd /tmp/bdtest && npm init -y && npm i puppeteer-core
+NODE_PATH=/tmp/bdtest/node_modules node /path/to/browser-dictionary/e2e.test.js
+```
+
+It finds Chrome automatically on macOS and Linux; override with `BD_CHROME=/path/to/chrome`. One
+check is a deliberate **control**: it fetches the dictionary from inside the restricted frame and
+asserts the CSP refuses it, so the service-worker proxy stays justified rather than cargo cult.
+
+## Known data quirk
+
+曱甴 (cockroach) has no jyutping of its own, so the reading is composed per character — and CC-Canto
+records 曱 as `zaat6` and 甴 as `gaat6`, which is the reverse of the conventional word reading
+*gaat6 zaat6*. The popup therefore shows `zaat6 gaat6 (per character)`. The composition is faithful to
+the source; the source has the two characters swapped. Fixing it means a word-level entry in
+[`build_dict.py`](../hkanime-w-cantocaption/build_dict.py) and republishing the shared blob, which
+affects all five surfaces, so it is recorded rather than patched here.
 
 ## Credit
 
