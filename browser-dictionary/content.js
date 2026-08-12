@@ -52,16 +52,23 @@
 
   BrowserDict.attach(document, opts);                  // ordinary pages, and the Monaco editor
 
-  // ---- VSCode webview bridge ----
-  const isWebviewHost = location.pathname.indexOf('/out/vs/workbench/contrib/webview/browser/pre/') !== -1;
-  if (!isWebviewHost) return;
-
+  // ---- the bridge ----
+  // Runs in EVERY frame rather than only where the path looks like a webview host. Sniffing the
+  // URL was a second thing that had to be right, for no benefit: attach() is idempotent and only
+  // re-arms on a fresh body, so scanning unconditionally costs a querySelectorAll every 500ms and
+  // removes the guesswork. Cross-origin children throw on .contentDocument and are skipped.
   setInterval(() => {
-    for (const f of document.querySelectorAll('iframe')) {
+    let frames;
+    try { frames = document.querySelectorAll('iframe, frame'); } catch (e) { return; }
+    for (const f of frames) {
       let d;
       try { d = f.contentDocument; } catch (e) { continue; }   // cross-origin, not ours
-      if (!d || !d.body || d.__browserDict) continue;
+      if (!d || !d.body) continue;
       BrowserDict.attach(d, opts);
     }
   }, 500);
+
+  // Same reason, for this frame: a webview's own document is rewritten out from under the content
+  // script that Chrome injected into it, and Chrome does not re-inject.
+  setInterval(() => BrowserDict.attach(document, opts), 500);
 })();

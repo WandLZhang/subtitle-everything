@@ -2,7 +2,7 @@
 // Covers the three helpers inherited from hkanime-w-cantocaption/dict.js plus the two ported from
 // the Android app: tone marks (Pinyin.kt) and the reading fallback chain (Dict.kt).
 const assert = require('assert');
-const { isCJK, toneColor, fwdMatch, accent, accentAll, readingFor } = require('./dict-core.js');
+const { isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, attach } = require('./dict-core.js');
 
 // ---- isCJK ----
 assert.strictEqual(isCJK('喜'), true, '喜 is CJK');
@@ -73,4 +73,39 @@ assert.strictEqual(r.text, 'yue1 zha2', 'falls back to the pinyin');
 assert.strictEqual(r.wrongLang, true, '曱甴 fallback is flagged as the wrong language');
 assert.strictEqual(r.isPinyin, true, 'and is known to be pinyin, so it renders with tone marks');
 
-console.log('PASS — isCJK / toneColor / fwdMatch / accent / readingFor all OK');
+// ---- attach() must survive a document.open()/write(), which is how VSCode fills a webview ----
+// The first shipped version guarded on doc.__browserDict. document.open() unregisters every
+// listener but REUSES the Document object, so that flag survived the very event it existed to
+// detect and the frame was skipped forever. Model both halves of that semantics here.
+function fakeDoc() {
+  const mkEl = () => ({ style: {}, children: [], isConnected: true, appendChild(c) { this.children.push(c); return c; } });
+  const doc = {
+    listeners: [],
+    body: mkEl(),
+    createElement: mkEl,
+    addEventListener(type, fn, cap) { this.listeners.push({ type, fn, cap }); },
+    removeEventListener(type, fn, cap) { this.listeners = this.listeners.filter(l => !(l.type === type && l.fn === fn && l.cap === cap)); },
+    // document.open() per spec: drop every listener, install a fresh body, same Document object
+    rewrite() { this.listeners = []; this.body = mkEl(); },
+  };
+  return doc;
+}
+
+const doc = fakeDoc();
+attach(doc, {});
+const first = doc.listeners.length;
+assert.ok(first >= 3, 'attach binds mousemove / mouseleave / keydown');
+
+attach(doc, {});
+assert.strictEqual(doc.listeners.length, first, 'a second attach on the same body is a no-op');
+
+doc.rewrite();                                   // <- VSCode writes the real webview content here
+assert.strictEqual(doc.listeners.length, 0, 'the rewrite killed the listeners, as the browser would');
+
+attach(doc, {});
+assert.strictEqual(doc.listeners.length, first, 'attach re-arms after a rewrite — this is the bug that shipped');
+
+attach(doc, {});
+assert.strictEqual(doc.listeners.length, first, 'and does not stack duplicates on the new body either');
+
+console.log('PASS — isCJK / toneColor / fwdMatch / accent / readingFor / attach re-arm all OK');

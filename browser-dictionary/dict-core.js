@@ -98,13 +98,9 @@
     return { text: ((entry && entry[other]) || '').trim(), isPinyin: other === 'py', composed: false, wrongLang: true };
   }
 
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, MAX_WORD };
-    return;
-  }
-  if (typeof document === 'undefined') return;
-
   // ---------------------------------- browser ----------------------------------
+  // Defined unconditionally, exported at the bottom, so the Node test can drive attach() against a
+  // fake document. Nothing here touches a real DOM or the network until attach() is called.
 
   let dictPromise = null;                                // one fetch per frame, on first CJK hover
   function loadDict() {
@@ -120,15 +116,24 @@
   const FONT = '"Chiron Hei HK","PingFang HK","Noto Sans HK","Microsoft JhengHei",sans-serif';
 
   /**
-   * Bind the hover dictionary to a document. Safe to call on any document, including the inner
-   * frame of a VSCode webview after it has been document.write()n.
+   * Bind the hover dictionary to a document. Safe to call repeatedly — call it on a timer if you
+   * like; it re-arms only when the document has actually been rewritten underneath it.
+   *
+   * The guard hangs off the BODY, not the document. document.open()/write() — which is how VSCode
+   * fills a webview — unregisters every listener on the document but REUSES the Document object,
+   * so a flag on the document survives the very event it is supposed to detect, and the frame is
+   * then skipped forever. A rewrite always builds a fresh body, so keying on the body makes the
+   * rewrite self-evident and the re-attach automatic.
    *
    * opts.getMode() -> 'jy' | 'py'    opts.setMode(m)     (both optional; defaults to jyutping)
    * opts.isEnabled() -> boolean                          (optional; defaults to always on)
    */
   function attach(doc, opts) {
-    if (!doc || doc.__browserDict) return;
-    doc.__browserDict = true;
+    if (!doc) return;
+    const body = doc.body;
+    if (!body || body.__browserDict) return;
+    body.__browserDict = true;
+    if (doc.__bdOff) { try { doc.__bdOff(); } catch (e) {} }   // drop the previous generation
     const o = opts || {};
     const getMode = o.getMode || (() => 'jy');
     const setMode = o.setMode || (() => {});
@@ -212,7 +217,7 @@
       return null;
     }
 
-    doc.addEventListener('mousemove', ev => {
+    function onMove(ev) {
       if (!isEnabled()) return hide();
       const c = caret(ev.clientX, ev.clientY);
       if (!c || !c.node || c.node.nodeType !== 3) return hide();
@@ -226,11 +231,9 @@
       if (!m) return hide();
       if (!last || last.word !== m.word) { last = m; render(m); }
       place(ev.clientX, ev.clientY);
-    }, true);
+    }
 
-    doc.addEventListener('mouseleave', hide, true);
-
-    doc.addEventListener('keydown', ev => {
+    function onKey(ev) {
       if (!isEnabled()) return;
       if (ev.key !== 'r' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
       // never steal `r` from somewhere the user is typing — this runs on every page, all day
@@ -238,8 +241,22 @@
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
       setMode(getMode() === 'py' ? 'jy' : 'py');
       if (last) render(last);
-    }, true);
+    }
+
+    doc.addEventListener('mousemove', onMove, true);
+    doc.addEventListener('mouseleave', hide, true);
+    doc.addEventListener('keydown', onKey, true);
+
+    // Named so a re-attach can drop them. After a document.write they are already dead, but a
+    // single-page app that swaps <body> without a rewrite would otherwise stack duplicates.
+    doc.__bdOff = () => {
+      doc.removeEventListener('mousemove', onMove, true);
+      doc.removeEventListener('mouseleave', hide, true);
+      doc.removeEventListener('keydown', onKey, true);
+    };
   }
 
-  globalThis.BrowserDict = { attach, isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, MAX_WORD, DICT_URL };
+  const API = { attach, isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, MAX_WORD, DICT_URL };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  else globalThis.BrowserDict = API;
 })();

@@ -84,6 +84,32 @@ frame can reach `iframe.contentDocument` and attach *after* the write. A 500ms p
 MutationObserver — it re-attaches after every rewrite, including the ones VSCode does when a panel
 reloads, with no lifecycle reasoning to get wrong.
 
+### The trap inside the workaround
+
+Worth its own note, because the first version of this extension had the bridge and still did not
+work. `attach()` guarded against double-binding with a flag on the **document**:
+
+```js
+if (!doc || doc.__browserDict) return;      // wrong
+doc.__browserDict = true;
+```
+
+`document.open()` unregisters every listener but **reuses the Document object**. So the flag outlived
+the one event it existed to detect: the content script Chrome injected into `fake.html` set it, the
+rewrite killed that script's listeners, and the poll then saw the flag and skipped the frame forever.
+
+The guard now hangs off `document.body`. A rewrite always builds a fresh body, which makes the
+rewrite self-evident and the re-attach automatic:
+
+```js
+const body = doc.body;
+if (!body || body.__browserDict) return;    // right
+body.__browserDict = true;
+```
+
+`dict-core.test.js` models both halves of `document.open()` — listeners dropped, body replaced,
+Document reused — and asserts that `attach()` re-arms. It fails against the old guard.
+
 ## What it cannot do
 
 **The integrated terminal.** code-oss loads `@xterm/addon-webgl`, so glyphs are painted to a canvas.
