@@ -165,6 +165,55 @@ because the workbench top frame is served from the workstation host, not googleu
 There are no text nodes to hover and no DOM dictionary can ever read it. Only screen OCR would, which
 is a different tool.
 
+## Plan: reaching the blocked webviews
+
+The webview is ordinary HTML that this extension already handles — `e2e.test.js` proves it against a
+faithful replica of one. Nothing is wrong with the code. The only question is where it is *allowed*
+to run, so the plan is to move it, not to rewrite it.
+
+### Step 0 — the gate
+
+`chrome://policy` → filter `ExtensionSettings` → read the **Scope** column and the
+`runtime_blocked_hosts` patterns. Enterprise policy attaches either to the machine or to the
+signed-in browser profile, and nothing downstream is decidable until that is known.
+
+### Branch A — Scope is User → a second Chrome profile
+
+A Chrome profile that is not signed in with the managed account does not inherit user-scope policy.
+Create one, load this folder unpacked (that persists across restarts), and sign in to the workstation
+*as a website* — a web login, which is not the same as signing into the browser. Confirm with
+`chrome://policy` in the new profile: `ExtensionSettings` should be absent. **No code changes.**
+
+### Branch B — Scope is Machine → Firefox for the workstation tab
+
+No Chrome profile escapes a machine-scope policy. Firefox is very unlikely to carry an equivalent
+Google policy; confirm at `about:policies`. Three small changes:
+
+1. A second manifest — Firefox MV3 has no `background.service_worker`, and uses
+   `background.scripts: ["dict-core.js", "background.js"]`.
+2. One guard so `background.js` serves both: `if (typeof importScripts === 'function')
+   importScripts('dict-core.js')`. Under Firefox the manifest loads `dict-core.js` itself.
+3. `browser_specific_settings.gecko.id`, for a stable identity.
+
+Everything else already ports: Firefox aliases `chrome.*` and supports `scripting.executeScript` with
+`func`, `webNavigation`, and `storage`.
+
+**Signing is the real cost of this branch.** Release Firefox will not permanently install an unsigned
+extension — `about:debugging` loads are temporary and die on restart, which defeats the point of an
+install-once tool. Making it permanent means submitting to AMO as **unlisted** (free and automated,
+and the source goes to Mozilla's signing service), or running Firefox Developer Edition with
+signature enforcement off.
+
+### Verification
+
+The toolbar popup is the acceptance test: the `*.googleusercontent.com` frames must read `attached`
+rather than `blocked by Chrome admin policy`. Then hover 佛珠 in the panel.
+
+### Deliberately excluded
+
+An OS-level macOS dictionary, a DevTools snippet, and terminal support were all considered and
+dropped. Each solves a surface outside the one this is for.
+
 ## Making it sync
 
 Load-unpacked is per-machine and depends on the folder staying put. For an install that syncs across
