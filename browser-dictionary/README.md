@@ -177,32 +177,35 @@ to run, so the plan is to move it, not to rewrite it.
 `runtime_blocked_hosts` patterns. Enterprise policy attaches either to the machine or to the
 signed-in browser profile, and nothing downstream is decidable until that is known.
 
-### Branch A — Scope is User → a second Chrome profile
+### Outcome on this machine
 
-A Chrome profile that is not signed in with the managed account does not inherit user-scope policy.
-Create one, load this folder unpacked (that persists across restarts), and sign in to the workstation
-*as a website* — a web login, which is not the same as signing into the browser. Confirm with
-`chrome://policy` in the new profile: `ExtensionSettings` should be absent. **No code changes.**
+`ExtensionSettings` is **Cloud / Machine / Mandatory**. Machine scope applies to every Chrome profile
+on the device, so a second profile changes nothing.
 
-### Branch B — Scope is Machine → Firefox for the workstation tab
+Switching to a browser the policy does not cover would defeat the control rather than satisfy it.
+That is a deliberate corporate security setting on a managed device, and routing around it is not a
+solution this repo will document, however harmless the payload. The two remaining routes are below.
 
-No Chrome profile escapes a machine-scope policy. Firefox is very unlikely to carry an equivalent
-Google policy; confirm at `about:policies`. Three small changes:
+### Route 1 — ask for the exemption the policy points at
 
-1. A second manifest — Firefox MV3 has no `background.service_worker`, and uses
-   `background.scripts: ["dict-core.js", "background.js"]`.
-2. One guard so `background.js` serves both: `if (typeof importScripts === 'function')
-   importScripts('dict-core.js')`. Under Firefox the manifest loads `dict-core.js` itself.
-3. `browser_specific_settings.gecko.id`, for a stable identity.
+The policy carries `blocked_install_message` directing to an internal process. The precise, minimal
+ask is not "unblock googleusercontent.com for everything" but a **per-extension** entry:
+`ExtensionSettings` accepts config keyed by extension ID, so the request is a `runtime_allowed_hosts`
+of `*://*.cloudworkstations.googleusercontent.com` scoped to this extension alone.
 
-Everything else already ports: Firefox aliases `chrome.*` and supports `scripting.executeScript` with
-`func`, `webNavigation`, and `storage`.
+That requires a **stable extension ID**, which an unpacked extension does not have by default. Pin one
+by generating a key pair and adding the public key as `"key"` in `manifest.json`, or by publishing
+Unlisted to the Chrome Web Store and using the assigned ID.
 
-**Signing is the real cost of this branch.** Release Firefox will not permanently install an unsigned
-extension — `about:debugging` loads are temporary and die on restart, which defeats the point of an
-install-once tool. Making it permanent means submitting to AMO as **unlisted** (free and automated,
-and the source goes to Mozilla's signing service), or running Firefox Developer Edition with
-signature enforcement off.
+### Route 2 — an OS-level lookup, which no browser policy governs
+
+A custom macOS dictionary (Dictionary Development Kit) or a PopClip extension built from the same
+CC-CEDICT + CC-Canto data. This is a person selecting a word and consulting a dictionary, not an
+extension reading a page, so the policy is not implicated. It reaches the Claude Code panel, and also
+native apps, PDFs and Preview.
+
+Trade-off: select-and-hotkey instead of hover, and a real build — converting the entries to Apple's
+dictionary XML and packaging the bundle.
 
 ### Verification
 
