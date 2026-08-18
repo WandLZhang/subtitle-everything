@@ -49,6 +49,18 @@ It can (`&tlang=en` isn't part of the signed parameter list, so you can append i
 earlier versions did. But YouTube's MT on **colloquial Cantonese** is weak — hence the switch to
 the original 口語 text plus Gemini for the English line, which handles 口語 and ASR slips far better.
 
+## Mandarin: [`script-mandarin.js`](script-mandarin.js)
+For Mandarin shows (時光代理人 / Link Click, etc.), use `script-mandarin.js` instead. Two changes:
+- It **keeps the track selected in the player** rather than stripping `&tlang`. On a Cantonese
+  video the track you want is the original and `tlang` is YouTube's MT; on a licensed Mandarin
+  show the Chinese (Simplified) track in the CC menu already *is* the one you want.
+- **Pinyin is the default** and renders as tone marks (`nǐ hǎo`), not digits. Press `r` for jyutping.
+
+It also handles **purchased / rented titles** (Crunchyroll and friends sell episodes through
+YouTube). Those don't expose `captionTracks` in the page source, so you can't pre-check a video the
+way you can a free one — but the player still fetches the track, and the hook catches it. If the
+console reports no URL captured, set Subtitles/CC → Off → the Chinese track, then re-run.
+
 ## Notes
 - **Never commit a real API key** — the file ships `YOUR_GEMINI_API_KEY`.
 - Quality is bounded by the source: an auto-generated track on noisy audio will have real errors,
