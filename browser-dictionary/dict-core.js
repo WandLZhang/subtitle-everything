@@ -226,13 +226,28 @@
       return null;
     }
 
+    // caret() gives an INSERTION POINT between characters, so hovering the right half of a
+    // character returns the offset AFTER it and we looked up its neighbour. Pick the character
+    // whose own box contains the cursor.
+    function hitChar(node, off, x) {
+      const len = (node.nodeValue || '').length, r = doc.createRange();
+      for (const i of [off - 1, off]) {
+        if (i < 0 || i >= len) continue;
+        r.setStart(node, i); r.setEnd(node, i + 1);
+        const b = r.getBoundingClientRect();
+        if (x >= b.left && x <= b.right) return i;
+      }
+      return Math.min(off, len - 1);
+    }
+
     function onMove(ev) {
       if (!isEnabled()) return hide();
       const c = caret(ev.clientX, ev.clientY);
       if (!c || !c.node || c.node.nodeType !== 3) return hide();
       const text = c.node.nodeValue || '';
-      if (!isCJK(text.charAt(c.off))) return hide();
-      const slice = text.substr(c.off, MAX_WORD);
+      const i = hitChar(c.node, c.off, ev.clientX);
+      if (!isCJK(text.charAt(i))) return hide();
+      const slice = text.substr(i, MAX_WORD);
       const x = ev.clientX, y = ev.clientY;
       if (last && last.slice === slice) return place(x, y);   // same word, just follow the cursor
       const token = ++pending;

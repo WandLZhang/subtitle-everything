@@ -109,12 +109,27 @@
       return null;
     }
 
+    // caret() gives an INSERTION POINT between characters, so hovering the right half of a
+    // character returns the offset AFTER it and we looked up its neighbour. Pick the character
+    // whose own box contains the cursor.
+    function hitChar(node, off, x) {
+      const len = (node.nodeValue || '').length, r = document.createRange();
+      for (const i of [off - 1, off]) {
+        if (i < 0 || i >= len) continue;
+        r.setStart(node, i); r.setEnd(node, i + 1);
+        const b = r.getBoundingClientRect();
+        if (x >= b.left && x <= b.right) return i;
+      }
+      return Math.min(off, len - 1);
+    }
+
     box.addEventListener('mousemove', e => {
       const c = caret(e.clientX, e.clientY);
       if (!c || !c.node || c.node.nodeType !== 3) return hide();
       const text = c.node.nodeValue || '';
-      if (!isCJK(text.charAt(c.off))) return hide();
-      const m = fwdMatch(dict, text, c.off);
+      const i = hitChar(c.node, c.off, e.clientX);
+      if (!isCJK(text.charAt(i))) return hide();
+      const m = fwdMatch(dict, text, i);
       if (!m) return hide();
       if (!last || last.word !== m.word) { last = m; render(m); }
       place(e.clientX, e.clientY);
