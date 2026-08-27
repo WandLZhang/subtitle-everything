@@ -121,10 +121,21 @@
   clearInterval(window.__wpTimer);
   window.__wpTimer = setInterval(() => { if (hovering) return; const cur = idxAt(srtTime() * 1000); if (cur !== lastIdx) draw(); }, 120);
 
-  const mkb = (t2, fn, style) => { const b = document.createElement('button'); b.textContent = t2; b.style.cssText = (style || 'border:1px solid #5a5f68;background:#22252b;color:#e8eaed') + ';cursor:pointer;border-radius:6px;padding:5px 10px;font-size:14px'; b.onmousedown = e => { e.preventDefault(); e.stopPropagation(); fn(); }; return b; };
+  // Bind BOTH mousedown and click. A player that swallows one still leaves the other, and the
+  // 300 ms lockout stops a press firing the handler twice.
+  const mkb = (t2, fn, style) => {
+    const b = document.createElement('button'); b.textContent = t2;
+    b.style.cssText = (style || 'border:1px solid #5a5f68;background:#22252b;color:#e8eaed') + ';cursor:pointer;border-radius:6px;padding:5px 10px;font-size:14px';
+    let t = -1e9;
+    const go = e => { e.preventDefault(); e.stopPropagation(); if (performance.now() - t < 300) return; t = performance.now(); fn(); };
+    b.onmousedown = go; b.onclick = go; return b;
+  };
   const nudge = d => () => { segFor(v.currentTime).off = +(segFor(v.currentTime).off + d).toFixed(2); label(); draw(); };
-  bar.append(mkb('◀ earlier line', () => syncTo(idxAt(srtTime() * 1000) - 1)), mkb('−0.5s', nudge(-0.5)), lbl, mkb('+0.5s', nudge(0.5)),
-    mkb('later line ▶', () => syncTo(idxAt(srtTime() * 1000) + 1)),
+  // One press = one cue. That is a second or two, so when the stream is tens of seconds out it
+  // looks like nothing happened — the console line is there to show the press did land.
+  window.wpStep = d => { const n = idxAt(srtTime() * 1000) + d; syncTo(n); console.log(`[wp] cue ${n + 1}/${cues.length} · off ${segFor(v.currentTime).off.toFixed(2)}s · ${cues[Math.max(0, Math.min(cues.length - 1, n))].text}`); };
+  bar.append(mkb('◀ earlier line', () => window.wpStep(-1)), mkb('−0.5s', nudge(-0.5)), lbl, mkb('+0.5s', nudge(0.5)),
+    mkb('later line ▶', () => window.wpStep(1)),
     mkb('✂ cut here', () => window.wpCut(), 'border:1px solid #b06fe0;background:#2b2233;color:#e3d4f5'),
     mkb('✓ hide bar', () => bar.remove(), 'border:1px solid #3fae4f;background:#1e3d24;color:#c8f0cf'));
   label(); draw();

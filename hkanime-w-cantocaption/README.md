@@ -26,14 +26,19 @@ it. That's the whole workflow — no arithmetic, no early/late guessing. Also:
 | Control | Does |
 |---|---|
 | click a phrase | make it "now" (primary way to sync) |
-| ◀ earlier line / later line ▶ | step one phrase back/forward |
+| ◀ earlier line / later line ▶ | step one phrase back/forward (a second or two — see below) |
 | −0.5s / +0.5s | fine trim |
 | ✂ cut here | add a breakpoint — everything after it keeps its own offset |
 | ✓ hide bar | hide the controls, keep the strip |
 
 `✂ cut here` exists because some streams remove content **mid-episode**, which makes one flat
 offset impossible (see Code Geass below). Console equivalents: `wpSync(n)` while cue *n* is
-spoken, `wpCut()`, and `window.SUB_SEGMENTS` holds the breakpoints.
+spoken, `wpStep(±1)`, `wpCut()`, and `window.SUB_SEGMENTS` holds the breakpoints.
+
+**◀ / ▶ move one cue, which is a second or two.** When a stream is tens of seconds out — Code Geass
+cuts about two minutes — you would need a dozen presses, and each one looks like nothing happened.
+Click the phrase you hear instead, or read the offset off the bar. Every press logs the new cue and
+offset to the console, so you can tell a press that landed from one that didn't.
 
 ## Shows and their quirks
 Set `SHOW` to one of these keys. Each entry builds candidate URLs and takes the first that exists,
