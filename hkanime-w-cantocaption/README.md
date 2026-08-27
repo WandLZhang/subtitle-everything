@@ -42,7 +42,7 @@ which is how the per-show naming mess below is absorbed. All verified against th
 | `SHOW` | Series | Eps | Quirk |
 |---|---|---|---|
 | `sakura` | 百變小櫻 MAGIC 咭 · Cardcaptor Sakura | 70 | Folder holds **two** naming sets (140 files); we pin the `[AI GEN V3]` one. Don't match on episode digits alone — `E058` also appears inside CRC hashes like `[C0E058A0]`. |
-| `codegeass` | 叛逆的魯魯修 · Code Geass | 50 | hkanime runs S1+S2 as one 1–50 list; CantoCaptions splits them and **renumbers** (ep 26 = S2E01). hkanime also **cuts the ~92.6 s OP**, so the offset steps partway in — hence the default two segments. |
+| `codegeass` | 叛逆的魯魯修 · Code Geass | 50 | hkanime runs S1+S2 as one 1–50 list; CantoCaptions splits them and **renumbers** (ep 26 = S2E01). hkanime also **cuts the OP**, so the offset steps partway in — hence the default two segments. **The step differs per episode:** ep 1 measured 92.6 s, ep 2 measured 127.8 s. Treat the preset as a starting point and click the first line you hear after the OP. |
 | `gintama` | 銀魂 · Gintama | 316 | Split across S1–S7; filenames carry the **global** number in `(nnn)` with seasons starting at 1/50/100/151/202/253/266. Episodes 1–2 share **one combined file**. |
 | `hxh` | 全職獵人 · Hunter × Hunter 2011 | 148 | Clean 3-digit numbering, no seasons. |
 | `drslump` | IQ博士 · Dr. Slump | 243 | E001 alone has a trailing ` - AI gen` in its filename. |
