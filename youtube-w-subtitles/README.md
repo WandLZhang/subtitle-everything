@@ -69,9 +69,18 @@ is nothing to catch and the script gives up.
 `script-rendered.js` reads the captions YouTube is already drawing on screen. Turn Subtitles/CC on,
 pick the Chinese track, and paste. Set `READING` to `'py'` (Mandarin) or `'jy'` (Cantonese).
 
-It trades away lookahead: only the line on screen exists, so the English line is translated one cue
-at a time as it appears rather than the whole episode up front. Lines are cached, so a repeat is
-free. The hover dictionary behaves the same as everywhere else.
+**It mirrors the text into our own overlay** rather than hovering YouTube's caption elements.
+Pointing at those wakes the control bar, which pushes the caption up from under the cursor.
+YouTube's own line is then hidden so only one shows; `ytNative(true)` puts it back.
+
+**The English line** comes from YouTube's own English track when it can. That track is written by a
+person and arrives with its timings, so it shows up with the Chinese and costs nothing. The script
+can only use it if the player fetches captions over `/api/timedtext` — switch Subtitles/CC to
+English once with the script running, then back to Chinese, and run `ytGrabEnglish()`.
+
+Without it, Gemini translates one line at a time. That always works, but it can't start until the
+Chinese line is on screen, so the English lands a few hundred ms late. Lines are cached, so a repeat
+is free. The console says which source is live.
 
 ## Notes
 - **Never commit a real API key** — the file ships `YOUR_GEMINI_API_KEY`.
