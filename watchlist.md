@@ -24,6 +24,32 @@ no 口語 track are listed under *No 口語 track* — good shows, but you'd be 
 ### In progress
 - **百變小櫻 MAGIC 咭 (Cardcaptor Sakura)** — 70 — **140 srt**
 
+### Also covered (corpus re-checked 2026-09-13)
+The corpus grew after the July pass. These are on hkanime **and** have srts. `id` is the hkanime
+number — the URL is `/play/<title>/<id>x<episode−1>`.
+
+| Show | id | eps | srt |
+|---|---|---|---|
+| 暗殺教室 (Assassination Classroom) S1 + S2 | `174` / `196` | 22 + 25 | 47, complete |
+| 日常 (Nichijou) | `265` | 26 | 26, complete |
+| Re:從零開始的異世界生活 (Re:Zero) | `110` | 25 | 25, complete |
+| 魔法少女小圓 (Madoka Magica) | `109` | 12 | 12, complete |
+| 冰菓 (Hyouka) | `368` | 22 | 23, complete |
+| 夏目友人帳 (Natsume) | `300` | 52 | 52, complete |
+| Dr. STONE S1 | `223` | 24 | 56 (S1–S2+) |
+| 七大罪 (Seven Deadly Sins) | `340` | 24 | 24, complete |
+| 我推的孩子 (Oshi no Ko) | `115` | 24 | 22 |
+| 食戟之靈 (Food Wars) | `195` | 24 | 35 |
+| 黑執事 (Black Butler) | `285` / `306` | 10 / 5 | 36 |
+
+### Srt exists, hkanime doesn't carry it
+Needs another Cantonese source. **Monster (74 srt)** is the strongest narrative in the corpus ·
+Ranma½ (161) · Cowboy Bebop (26) · Dandadan (12) · 老夫子 Old Master Q (13).
+
+### Watch the year in the title
+hkanime lists **全職獵人 1999** (id `111`, 62 eps) and **全職獵人 2011** (id `522`, 148 eps) as
+separate shows. Only 2011 has srts. The same trap applies anywhere a remake shares a name.
+
 ### No 口語 track (CantoCaptions has nothing)
 ~~齊木楠雄的災難 (Saiki K.)~~ · ~~Keroro軍曹 (Sgt. Frog)~~ · ~~我們這一家 (Atashinchi)~~ · ~~棋靈王 (Hikaru no Go)~~ · ~~植木的法則 (The Law of Ueki)~~ · ~~名偵探柯南 (Detective Conan)~~
 
