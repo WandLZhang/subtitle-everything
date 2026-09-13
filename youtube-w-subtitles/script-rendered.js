@@ -39,9 +39,11 @@
   }
 
   // Remember every caption URL the player requests, keyed by language. Installed once and left in
-  // place, so switching tracks later still registers.
+  // place, so switching tracks later still registers. YT_TRACKS is created outside the guard —
+  // an older script in this tab may have set YT_HOOKED without it, which left this empty forever.
+  window.YT_TRACKS = window.YT_TRACKS || {};
   if (!window.YT_HOOKED) {
-    window.YT_HOOKED = true; window.YT_TRACKS = {};
+    window.YT_HOOKED = true;
     const note = u => { try { const l = new URL(u, location.href).searchParams.get('lang'); if (l) window.YT_TRACKS[l] = u; } catch (e) {} };
     const of = window.fetch;
     window.fetch = function (...a) { const u = typeof a[0] === 'string' ? a[0] : (a[0] && a[0].url); if (typeof u === 'string' && u.includes('timedtext')) note(u); return of.apply(this, a); };
@@ -85,16 +87,43 @@
     for (let i = 0; i < out.length - 1; i++) if (out[i].end > out[i + 1].start) out[i].end = out[i + 1].start - 1;
     return out;
   };
-  let enCues = [];
-  window.ytGrabEnglish = async () => {
-    const hit = Object.entries(window.YT_TRACKS).find(([l]) => l.toLowerCase().startsWith('en'));
-    if (!hit) { console.warn('[yt] no English track seen yet. Switch Subtitles/CC to English, wait 2s, switch back to Chinese, then run ytGrabEnglish().'); return 0; }
+  let enCues = [], borrowing = false;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const seenEnglish = () => Object.entries(window.YT_TRACKS).find(([l]) => l.toLowerCase().startsWith('en'));
+  const opt = (k, v) => { try { return v === undefined ? player.getOption('captions', k) : player.setOption('captions', k, v); } catch (e) { return null; } };
+
+  const fetchEnglish = async () => {
+    const hit = seenEnglish();
+    if (!hit) return 0;
     const u = new URL(hit[1]); u.searchParams.delete('tlang'); u.searchParams.set('fmt', 'json3');
     try {
       enCues = parseJson3(await (await fetch(u.toString())).json());
       console.log(`[yt] English track "${hit[0]}" loaded — ${enCues.length} cues, in sync, Gemini off.`);
     } catch (e) { console.warn('[yt] English track fetch failed', e); }
     return enCues.length;
+  };
+
+  // Borrow the English track: flip the player to it just long enough for it to be requested, then
+  // put the Chinese one back. Beats making you do it by hand, and the player API knows the exact
+  // track objects. The mirror pauses meanwhile so the English never lands in the Chinese line.
+  window.ytGrabEnglish = async () => {
+    if (await fetchEnglish()) return enCues.length;
+    const list = opt('tracklist') || [];
+    console.log('[yt] player tracks:', list.map(t => t.languageCode || t.vss_id).join(', ') || '(none)');
+    const enT = list.find(t => (t.languageCode || '').toLowerCase().startsWith('en'));
+    const cur = opt('track');
+    if (!enT || !cur) { console.warn('[yt] player API gave no track list — captions are not served over timedtext here. Staying on Gemini.'); return 0; }
+    borrowing = true;
+    try {
+      opt('track', enT);
+      for (let i = 0; i < 30 && !seenEnglish(); i++) await sleep(150);
+    } finally {
+      opt('track', cur);
+      await sleep(300);
+      borrowing = false;
+    }
+    if (!seenEnglish()) { console.warn('[yt] switched to English but no timedtext request followed — this title streams its captions. Staying on Gemini.'); return 0; }
+    return await fetchEnglish();
   };
   await window.ytGrabEnglish();
   const enAt = ms => { let lo = 0, hi = enCues.length - 1, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (enCues[m].start <= ms) { best = m; lo = m + 1; } else hi = m - 1; } if (best < 0) return ''; const c = enCues[best]; return ms <= c.end + 400 ? c.text : ''; };
@@ -175,6 +204,7 @@
   clearInterval(window.__ytRenderTimer);
   window.__ytRenderTimer = setInterval(async () => {
     ytNative(false);
+    if (borrowing) return;                        // English is on screen right now; don't mirror it
     const text = nativeText();
     if (text !== shownZh) {
       shownZh = text;

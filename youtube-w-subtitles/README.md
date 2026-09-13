@@ -74,9 +74,10 @@ Pointing at those wakes the control bar, which pushes the caption up from under 
 YouTube's own line is then hidden so only one shows; `ytNative(true)` puts it back.
 
 **The English line** comes from YouTube's own English track when it can. That track is written by a
-person and arrives with its timings, so it shows up with the Chinese and costs nothing. The script
-can only use it if the player fetches captions over `/api/timedtext` — switch Subtitles/CC to
-English once with the script running, then back to Chinese, and run `ytGrabEnglish()`.
+person and arrives with its timings, so it shows up with the Chinese and costs nothing. On startup
+the script flips the player to the English track for a second, catches the request, and flips back
+— you don't have to touch the menu. The mirror pauses during the flip. Re-run it with
+`ytGrabEnglish()`. It only works if the player fetches captions over `/api/timedtext`.
 
 Without it, Gemini translates one line at a time. That always works, but it can't start until the
 Chinese line is on screen, so the English lands a few hundred ms late. Lines are cached, so a repeat
