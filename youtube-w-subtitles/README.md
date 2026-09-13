@@ -79,6 +79,11 @@ the script flips the player to the English track for a second, catches the reque
 — you don't have to touch the menu. The mirror pauses during the flip. Re-run it with
 `ytGrabEnglish()`. It only works if the player fetches captions over `/api/timedtext`.
 
+Captured URLs are filtered by the current video id. YouTube is a single-page app, so moving to the
+next episode leaves the previous episode's caption URLs in the resource-timing buffer and in
+`window.YT_TRACKS` — without the check the script happily loads the wrong episode's English. If a
+borrowed track still reads wrong, `ytUseGemini()` drops it.
+
 Without it, Gemini translates one line at a time. That always works, but it can't start until the
 Chinese line is on screen, so the English lands a few hundred ms late. Lines are cached, so a repeat
 is free. The console says which source is live.

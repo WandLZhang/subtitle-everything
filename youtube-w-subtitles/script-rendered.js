@@ -38,19 +38,28 @@
     return;
   }
 
-  // Remember every caption URL the player requests, keyed by language. Installed once and left in
-  // place, so switching tracks later still registers. YT_TRACKS is created outside the guard —
-  // an older script in this tab may have set YT_HOOKED without it, which left this empty forever.
+  // Remember every caption URL the player requests, keyed by language.
+  //
+  // Keep the video id. YouTube is a single-page app: moving to the next episode never reloads the
+  // page, so both this map and the resource-timing buffer still hold caption URLs from whatever
+  // you watched before. Loading one of those puts a completely different episode's English on
+  // screen. Every URL carries `v`, so anything that isn't this video is dropped.
+  //
+  // YT_TRACKS is created outside the hook guard — an older script in this tab may have set
+  // YT_HOOKED without it, which left this empty forever.
+  const VID = new URLSearchParams(location.search).get('v') || '';
+  if (window.YT_VID !== VID) { window.YT_TRACKS = {}; window.YT_VID = VID; }
   window.YT_TRACKS = window.YT_TRACKS || {};
+  const note = u => { try { const q = new URL(u, location.href).searchParams; const l = q.get('lang'); if (l && q.get('v') === VID) window.YT_TRACKS[l] = u; } catch (e) {} };
   if (!window.YT_HOOKED) {
     window.YT_HOOKED = true;
-    const note = u => { try { const l = new URL(u, location.href).searchParams.get('lang'); if (l) window.YT_TRACKS[l] = u; } catch (e) {} };
     const of = window.fetch;
-    window.fetch = function (...a) { const u = typeof a[0] === 'string' ? a[0] : (a[0] && a[0].url); if (typeof u === 'string' && u.includes('timedtext')) note(u); return of.apply(this, a); };
+    window.fetch = function (...a) { const u = typeof a[0] === 'string' ? a[0] : (a[0] && a[0].url); if (typeof u === 'string' && u.includes('timedtext')) window.__ytNote(u); return of.apply(this, a); };
     const oo = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (m, u, ...a) { if (typeof u === 'string' && u.includes('timedtext')) note(u); return oo.call(this, m, u, ...a); };
+    XMLHttpRequest.prototype.open = function (m, u, ...a) { if (typeof u === 'string' && u.includes('timedtext')) window.__ytNote(u); return oo.call(this, m, u, ...a); };
   }
-  for (const e of performance.getEntriesByType('resource')) if (e.name.includes('timedtext')) { try { const l = new URL(e.name).searchParams.get('lang'); if (l) window.YT_TRACKS[l] = e.name; } catch (x) {} }
+  window.__ytNote = note;                         // the hook is installed once; keep it pointed here
+  for (const e of performance.getEntriesByType('resource')) if (e.name.includes('timedtext')) note(e.name);
 
   let D;
   try { D = (await (await fetch(DICT_URL)).json()).entries; }
@@ -98,10 +107,12 @@
     const u = new URL(hit[1]); u.searchParams.delete('tlang'); u.searchParams.set('fmt', 'json3');
     try {
       enCues = parseJson3(await (await fetch(u.toString())).json());
-      console.log(`[yt] English track "${hit[0]}" loaded — ${enCues.length} cues, in sync, Gemini off.`);
+      console.log(`[yt] English track "${hit[0]}" v=${u.searchParams.get('v')} — ${enCues.length} cues, in sync, Gemini off.`);
     } catch (e) { console.warn('[yt] English track fetch failed', e); }
     return enCues.length;
   };
+  // If the borrowed track still reads wrong, drop it and go back to translating the line on screen.
+  window.ytUseGemini = () => { enCues = []; console.log('[yt] English source: Gemini'); };
 
   // Borrow the English track: flip the player to it just long enough for it to be requested, then
   // put the Chinese one back. Beats making you do it by hand, and the player API knows the exact
