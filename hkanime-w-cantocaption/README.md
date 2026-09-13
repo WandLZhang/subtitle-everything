@@ -51,10 +51,25 @@ which is how the per-show naming mess below is absorbed. All verified against th
 | `gintama` | 銀魂 · Gintama | 316 | Split across S1–S7; filenames carry the **global** number in `(nnn)` with seasons starting at 1/50/100/151/202/253/266. Episodes 1–2 share **one combined file**. |
 | `hxh` | 全職獵人 · Hunter × Hunter 2011 | 148 | Clean 3-digit numbering, no seasons. |
 | `drslump` | IQ博士 · Dr. Slump | 243 | E001 alone has a trailing ` - AI gen` in its filename. |
+| `spyfamily` / `spyfamily2` | SPY×FAMILY 間諜家家酒 S1 / S2 | 25 / 12 | Filenames end in the **episode title** (`S01E01-OPERATION STRIX.srt`), so no formula reaches them — the script lists the folder over the GitHub contents API and matches `S01E07`. hkanime gives each season its own page, so `EP` starts at 1 in both. **HEVC — see below.** |
 
 Adding a show: copy an entry in the `SHOWS` registry and point it at the folder in
 [CantoCaptions](https://github.com/notHulK11/CantoCaptions/tree/main/Subtitles/Series). Check
 coverage first — several popular titles have none (see [../watchlist.md](../watchlist.md)).
+
+**Some titles are HEVC and Chrome can't play them.** hkanime serves SPY×FAMILY as a single
+`hev1.1.2.L123.80` rendition with no H.264 fallback. Chrome decodes HEVC only through the OS, and
+not at all through Media Source Extensions, which is the path the site's hls.js uses — so it fails
+with `manifestIncompatibleCodecsError`, surfaced as JW Player error 232632. Nothing is
+misconfigured. Check any title in one line:
+
+```js
+['hev1.1.2.L123.80', 'avc1.640028'].forEach(c => console.log(c, MediaSource.isTypeSupported(`video/mp4; codecs="${c}"`)));
+```
+
+Safari plays HEVC natively and handles HLS without hls.js at all. On Windows, Chrome and Edge work
+once **HEVC Video Extensions** is installed. The overlay itself doesn't care — it only needs a
+`<video>`.
 
 **Merged cues:** these are AI-generated srts, and some cues bundle several sentences under one
 timestamp. The strip can only offer the whole block as one clickable unit, so clicking it syncs to

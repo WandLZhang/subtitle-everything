@@ -24,6 +24,15 @@
   // Dr. Slump's odd E001 suffix, Code Geass's per-season renumbering.
   const RAW = 'https://raw.githubusercontent.com/notHulK11/CantoCaptions/main/Subtitles/Series/Dubbed%20(AI-generated)/';
   const p2 = n => String(n).padStart(2, '0'), p3 = n => String(n).padStart(3, '0'), enc = encodeURIComponent;
+  // For shows whose filenames hold the episode title, ask GitHub for the folder and match on the
+  // SxxEyy tag. The contents API is CORS-open on public repos; 60 requests an hour is plenty.
+  const listMatch = async (dir, tag) => {
+    const api = 'https://api.github.com/repos/notHulK11/CantoCaptions/contents/Subtitles/Series/Dubbed%20(AI-generated)/' + dir.split('/').map(enc).join('/');
+    try {
+      const items = await (await fetch(api)).json();
+      return items.filter(i => i.name.includes(tag) && i.name.endsWith('.srt')).map(i => i.download_url);
+    } catch (e) { console.warn('[wp] could not list', dir, e); return []; }
+  };
   const SHOWS = {
     sakura: {
       title: '百變小櫻 MAGIC 咭 · Cardcaptor Sakura (70 eps)',
@@ -48,6 +57,12 @@
       },
     },
     hxh: { title: '全職獵人 · Hunter x Hunter 2011 (148 eps)', urls: ep => [RAW + 'Hunter%20x%20Hunter%20(2011)/' + enc(`[AI GEN] [Judas] Hunter x Hunter (2011) - S01E${p3(ep)}.srt`)] },
+    // Filenames end in the EPISODE TITLE ("S01E01-OPERATION STRIX.srt"), so no formula reaches
+    // them. List the season folder and take the file whose name holds S01E07. One extra request,
+    // and it survives the corpus renaming a title. hkanime splits the seasons into separate pages,
+    // so each season is its own key and EP always starts at 1.
+    spyfamily: { title: 'SPY×FAMILY 間諜家家酒 S1 (25 eps)', urls: ep => listMatch('Spy x Family (2022)/S1', `S01E${p2(ep)}`) },
+    spyfamily2: { title: 'SPY×FAMILY 間諜家家酒 S2 (12 eps)', urls: ep => listMatch('Spy x Family (2022)/S2', `S02E${p2(ep)}`) },
     drslump: { title: 'IQ博士 · Dr. Slump (243 eps)', urls: ep => [RAW + 'Dr.%20Slump%20(1981)/' + enc(`[AI GEN] Dr.Slump_1981.DVD.E${p3(ep)}.srt`), RAW + 'Dr.%20Slump%20(1981)/' + enc(`[AI GEN] Dr.Slump_1981.DVD.E${p3(ep)} - AI gen.srt`)] },
   };
   const cfg = SHOWS[SHOW]; if (!cfg) { alert('Unknown SHOW. Options: ' + Object.keys(SHOWS).join(', ')); return; }
@@ -58,7 +73,7 @@
 
   const v = document.querySelector('video'); if (!v) { alert('start playback first'); return; }
   let raw = null;
-  for (const u of cfg.urls(EP)) { try { const r = await fetch(u); if (r.ok) { raw = await r.text(); console.log('[wp]', decodeURIComponent(u.split('/').pop())); break; } } catch (e) {} }
+  for (const u of await cfg.urls(EP)) { try { const r = await fetch(u); if (r.ok) { raw = await r.text(); console.log('[wp]', decodeURIComponent(u.split('/').pop())); break; } } catch (e) {} }
   if (!raw) { alert(`No srt found for ${SHOW} ep ${EP}. Check the episode number (hkanime x-number + 1).`); return; }
   const cues = parse(raw); cues.sort((a, b) => a.start - b.start); window.__cues = cues;
   console.log(`[wp] ${cfg.title} · ep ${EP} · ${cues.length} cues`);
