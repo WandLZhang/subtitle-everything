@@ -12,7 +12,7 @@ so it works with [`hkanime-w-cantocaption/`](hkanime-w-cantocaption/) straight a
 no 口語 track are listed under *No 口語 track* — good shows, but you'd be watching them raw.
 
 ### Amazing / narrative
-- **全職獵人 2011 (Hunter×Hunter)** — 148 eps — **148 srt, complete** — top pick if unwatched
+- ~~**全職獵人 2011 (Hunter×Hunter)** — 148 eps — 148 srt, complete~~ — **won't do** (2026-09-13)
 - **叛逆的魯魯修 (Code Geass)** — 50 (S1+S2) — **51 srt, complete**
 - **SPY×FAMILY 間諜家家酒** — amazing *and* funny — **37 srt** (covers S1+S2)
 - ~~葬送的芙莉蓮 (Frieren)~~ · ~~犬夜叉 (Inuyasha, "just OK")~~ — watched
