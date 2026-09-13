@@ -79,14 +79,17 @@ truncates, blank-skipping a bad batch. **Never commit your key** (the file ships
 python build_dict.py canto-dict.min.json           # merge CC-CEDICT + CC-Canto -> JSON
 # one-time public bucket setup (needs storage.publicAccessPrevention + iam.allowedPolicyMemberDomains
 # at Google defaults on the project), then upload — commands are also printed by the script:
-gcloud storage buckets create gs://wz-qwen-test-canto-dict --location=US --uniform-bucket-level-access
-printf '[{"origin":["*"],"method":["GET"],"responseHeader":["Content-Type"],"maxAgeSeconds":3600}]' > cors.json
-gcloud storage buckets update gs://wz-qwen-test-canto-dict --cors-file=cors.json
-gcloud storage buckets add-iam-policy-binding gs://wz-qwen-test-canto-dict --member=allUsers --role=roles/storage.objectViewer
+gcloud storage buckets create gs://wz-canto-dict --project=wz-mobile-coding --location=US --uniform-bucket-level-access
+printf '[{"origin":["*"],"method":["GET","HEAD"],"responseHeader":["Content-Type","Content-Encoding"],"maxAgeSeconds":3600}]' > cors.json
+gcloud storage buckets update gs://wz-canto-dict --cors-file=cors.json
+gcloud storage buckets add-iam-policy-binding gs://wz-canto-dict --member=allUsers --role=roles/storage.objectViewer
 gzip -kf canto-dict.min.json && gcloud storage cp canto-dict.min.json.gz \
-  gs://wz-qwen-test-canto-dict/canto-dict.min.json \
+  gs://wz-canto-dict/canto-dict.min.json \
   --content-encoding=gzip --content-type=application/json --cache-control="public,max-age=86400"
 ```
+The bucket used to live in `wz-qwen-test`. That project was deleted in the September 2026 teardown
+and every tool started returning 404, so the dictionary now lives in `wz-mobile-coding`, which is a
+project that stays. Host it somewhere long-lived — the installed Android app has the URL compiled in.
 > **Dictionary data:** CC-CEDICT and CC-Canto (© Pleco Software), both **CC-BY-SA 3.0**.
 
 ## Files

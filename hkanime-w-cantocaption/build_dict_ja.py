@@ -48,7 +48,7 @@ def build(src_json, out_path):
     print(f"wrote {out_path}")
     print("Publish:")
     print(f"  gzip -kf {out_path} && gcloud storage cp {out_path}.gz "
-          "gs://wz-qwen-test-canto-dict/ja-dict.min.json "
+          "gs://wz-canto-dict/ja-dict.min.json "
           "--content-encoding=gzip --content-type=application/json --cache-control='public,max-age=86400'")
 
 

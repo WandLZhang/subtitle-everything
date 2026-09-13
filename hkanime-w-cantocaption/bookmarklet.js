@@ -15,7 +15,7 @@
   const KEY = 'YOUR_GEMINI_API_KEY';     // optional English line (https://aistudio.google.com/apikey)
 
   const MODEL = 'gemini-flash-lite-latest', BATCH = 50, CONC = 8;
-  const DICT_URL = 'https://storage.googleapis.com/wz-qwen-test-canto-dict/canto-dict.min.json', MAX_WORD = 8;
+  const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
   const RADIUS = 4;                      // phrases shown either side in the strip
 
   // ---- show registry -------------------------------------------------------------------

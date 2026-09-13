@@ -192,7 +192,7 @@ const check = (name, ok, detail) => {
     // control: prove the CSP really does refuse a fetch from inside that document, so we know the
     // service-worker proxy is load-bearing and not cargo cult
     const blocked = await inner.evaluate(() =>
-      fetch('https://storage.googleapis.com/wz-qwen-test-canto-dict/canto-dict.min.json', { method: 'HEAD' })
+      fetch('https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', { method: 'HEAD' })
         .then(() => 'allowed').catch(e => 'blocked'));
     check('page CSP blocks a direct fetch from that frame', blocked === 'blocked', blocked);
 

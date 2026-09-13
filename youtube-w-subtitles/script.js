@@ -20,7 +20,7 @@
 (async () => {
   const KEY = 'YOUR_GEMINI_API_KEY';
   const MODEL = 'gemini-flash-lite-latest', BATCH = 50, CONC = 8;
-  const DICT_URL = 'https://storage.googleapis.com/wz-qwen-test-canto-dict/canto-dict.min.json', MAX_WORD = 8;
+  const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
 
   // 1. hook the network and grab the player's signed timedtext URL
   if (!window.YT_HOOKED) {

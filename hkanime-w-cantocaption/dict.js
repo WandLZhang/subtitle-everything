@@ -7,7 +7,7 @@
 // The dictionary is a public, gzip'd, CORS-open GCS object (built by build_dict.py).
 (function () {
   'use strict';
-  const DICT_URL = 'https://storage.googleapis.com/wz-qwen-test-canto-dict/canto-dict.min.json';
+  const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json';
   const MAX_WORD = 8;                                   // longest word to try (chars)
 
   // ---- pure helpers (also exported for the Node test) ----

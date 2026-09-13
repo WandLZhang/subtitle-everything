@@ -178,10 +178,10 @@ def main():
     print(f"\nwrote {out_path}  ({mb:.1f} MB)")
     print("\nPublish to the public GCS object dict.js reads (gzipped, CORS-open, cached):")
     print(f"  gzip -kf {out_path}")
-    print(f"  gcloud storage cp {out_path}.gz gs://wz-qwen-test-canto-dict/canto-dict.min.json \\")
+    print(f"  gcloud storage cp {out_path}.gz gs://wz-canto-dict/canto-dict.min.json \\")
     print("      --content-encoding=gzip --content-type=application/json --cache-control='public,max-age=86400'")
     print("  # one-time bucket setup (public + CORS) is documented in hkanime-w-cantocaption/README.md")
-    print("  # dict.js DICT_URL = https://storage.googleapis.com/wz-qwen-test-canto-dict/canto-dict.min.json")
+    print("  # dict.js DICT_URL = https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json")
 
 
 if __name__ == "__main__":

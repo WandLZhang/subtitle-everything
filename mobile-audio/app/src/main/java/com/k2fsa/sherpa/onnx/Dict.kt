@@ -14,8 +14,8 @@ import java.net.URL
  */
 object Dict {
     const val MAX_WORD = 8
-    private const val CN_URL = "https://storage.googleapis.com/wz-qwen-test-canto-dict/canto-dict.min.json"
-    private const val JA_URL = "https://storage.googleapis.com/wz-qwen-test-canto-dict/ja-dict.min.json"
+    private const val CN_URL = "https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json"
+    private const val JA_URL = "https://storage.googleapis.com/wz-canto-dict/ja-dict.min.json"
     // versioned cache names so a format change forces a fresh download
     private const val CN_FILE = "canto-dict-bi.json"
     private const val JA_FILE = "ja-dict.json"
