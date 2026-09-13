@@ -1,56 +1,48 @@
-// youtube-w-subtitles — RENDERED-CAPTION variant. Reads the captions YouTube is already drawing,
-// mirrors them into our own overlay, and makes every word hoverable.
+// youtube-w-subtitles — for titles the plain scripts can't read, including PURCHASED and rented
+// ones (Crunchyroll and friends sell episodes through YouTube). Those don't list `captionTracks`
+// in the page source, so nothing can be checked up front.
 //
-// Use this when script.js / script-mandarin.js report no caption URL. PURCHASED and rented titles
-// (Crunchyroll and friends sell episodes through YouTube) don't list `captionTracks` in the page
-// source, and some never request `/api/timedtext` at all — the track arrives inside the media
-// stream. There is nothing for a network hook to catch. The player still draws the text, so that
-// is what this reads.
+// It takes the best path available, in this order:
+//   1. FETCH the Chinese track and pre-translate the whole episode with Gemini in batches. Both
+//      lines then render together off one cue list — no lag. The track URL is signed, so it can
+//      only be reused, never built: the script borrows it through the player.
+//   2. MIRROR the captions YouTube draws, translating one line at a time. Always works, but it
+//      can't start until the line is on screen, so the English lands a few hundred ms late.
 //
-// It mirrors rather than hovering YouTube's own caption elements, because pointing at those wakes
-// the control bar, which pushes the captions up from under the cursor. Our copy sits still.
-// YouTube's captions are then hidden so there is only one line on screen; `ytNative(true)` puts
-// them back.
-//
-// The English line comes from whichever of these is available, best first:
-//   1. YouTube's OWN English track. A human wrote it and the timings come with it, so it appears
-//      WITH the Chinese instead of behind it, and it costs nothing. The script can only use it if
-//      the player fetches captions over /api/timedtext. Switch Subtitles/CC to English once with
-//      the script running, then back to Chinese, and it gets caught.
-//   2. Gemini, one line at a time. Always works, but it cannot start until the Chinese line is on
-//      screen, so the English lands a few hundred ms late. Lines are cached, so a repeat is free.
+// It renders into its own overlay either way. Hovering YouTube's caption elements wakes the
+// control bar, which pushes the caption up from under the cursor; our copy sits still. YouTube's
+// own line is hidden so only one shows — `ytNative(true)` puts it back.
 //
 // SETUP: turn Subtitles/CC ON and pick the Chinese track. Set READING to 'py' for a Mandarin show
-// or 'jy' for Cantonese. Set KEY for the Gemini fallback. NEVER commit a real key.
+// or 'jy' for Cantonese. Set KEY for the English line. NEVER commit a real key.
+//
+// USE_YT_ENGLISH borrows YouTube's own English track instead of translating. It is off because the
+// English track does not always correspond to the Chinese one — on Link Click the two are
+// unrelated. Turn it on only after checking a few lines against each other.
 (async () => {
   const KEY = 'YOUR_GEMINI_API_KEY';
   const READING = 'py';                     // 'py' = pinyin with tone marks, 'jy' = jyutping
   const LANG = 'Mandarin Chinese';          // used only in the translation prompt
-  const MODEL = 'gemini-flash-lite-latest';
+  const ZH = 'zh';                          // caption language prefix to fetch
+  const USE_YT_ENGLISH = false;
+  const MODEL = 'gemini-flash-lite-latest', BATCH = 50, CONC = 8;
   const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
   const CAP = '.ytp-caption-segment';
 
   const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
   const video = document.querySelector('video');
   if (!player || !video) { alert('No YouTube player found.'); return; }
-  if (!document.querySelector(CAP)) {
-    alert('No captions on screen.\nTurn Subtitles/CC on, pick the Chinese track, wait for a line to appear, then re-run.');
-    return;
-  }
 
   // Remember every caption URL the player requests, keyed by language.
   //
   // Keep the video id. YouTube is a single-page app: moving to the next episode never reloads the
   // page, so both this map and the resource-timing buffer still hold caption URLs from whatever
-  // you watched before. Loading one of those puts a completely different episode's English on
-  // screen. Every URL carries `v`, so anything that isn't this video is dropped.
-  //
-  // YT_TRACKS is created outside the hook guard — an older script in this tab may have set
-  // YT_HOOKED without it, which left this empty forever.
+  // you watched before. Loading one of those puts a completely different episode on screen. Every
+  // URL carries `v`, so anything that isn't this video is dropped.
   const VID = new URLSearchParams(location.search).get('v') || '';
   if (window.YT_VID !== VID) { window.YT_TRACKS = {}; window.YT_VID = VID; }
   window.YT_TRACKS = window.YT_TRACKS || {};
-  const note = u => { try { const q = new URL(u, location.href).searchParams; const l = q.get('lang'); if (l && q.get('v') === VID) window.YT_TRACKS[l] = u; } catch (e) {} };
+  window.__ytNote = u => { try { const q = new URL(u, location.href).searchParams; const l = q.get('lang'); if (l && q.get('v') === VID) window.YT_TRACKS[l] = u; } catch (e) {} };
   if (!window.YT_HOOKED) {
     window.YT_HOOKED = true;
     const of = window.fetch;
@@ -58,86 +50,79 @@
     const oo = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (m, u, ...a) { if (typeof u === 'string' && u.includes('timedtext')) window.__ytNote(u); return oo.call(this, m, u, ...a); };
   }
-  window.__ytNote = note;                         // the hook is installed once; keep it pointed here
-  for (const e of performance.getEntriesByType('resource')) if (e.name.includes('timedtext')) note(e.name);
+  for (const e of performance.getEntriesByType('resource')) if (e.name.includes('timedtext')) window.__ytNote(e.name);
 
   let D;
   try { D = (await (await fetch(DICT_URL)).json()).entries; }
   catch (e) { alert('Dictionary failed to load: ' + e.message); return; }
-  console.log('[yt] dictionary ready —', Object.keys(D).length, 'headwords.');
+  console.log(`[yt] dictionary ready — ${Object.keys(D).length} headwords. video v=${VID}`);
 
   // ---- our overlay, mounted in the player so it survives fullscreen ----
   document.getElementById('yt-dict-pop')?.remove(); document.getElementById('yt-mirror')?.remove();
   const box = document.createElement('div'); box.id = 'yt-mirror';
   box.style.cssText = 'position:absolute;left:50%;bottom:13%;transform:translateX(-50%);z-index:60;max-width:90%;text-align:center;pointer-events:auto;font-family:"PingFang SC","Chiron Hei HK","Noto Sans SC",system-ui';
   const mk = (c, s) => { const d = document.createElement('div'); d.style.cssText = 'display:inline-block;margin:2px;padding:3px 13px;background:rgba(0,0,0,.8);border-radius:7px;color:' + c + ';font-size:' + s + 'px;text-shadow:0 2px 4px #000'; return d; };
-  const zh = mk('#7fd7ff', 28), en = mk('#ffd479', 19);
-  const r1 = document.createElement('div'); r1.append(zh);
-  const r2 = document.createElement('div'); r2.append(en);
+  const zhEl = mk('#7fd7ff', 28), enEl = mk('#ffd479', 19);
+  const r1 = document.createElement('div'); r1.append(zhEl);
+  const r2 = document.createElement('div'); r2.append(enEl);
   box.append(r1, r2); player.appendChild(box);
   const pop = document.createElement('div'); pop.id = 'yt-dict-pop';
   pop.style.cssText = 'position:fixed;z-index:2147483647;max-width:360px;padding:9px 12px;border-radius:8px;background:rgba(17,19,23,.97);color:#e8eaed;font-size:14px;line-height:1.45;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);display:none;text-align:left;font-family:"PingFang SC","Chiron Hei HK","Noto Sans SC",system-ui';
   document.body.appendChild(pop);
 
-  // Hide YouTube's own captions with opacity, not display — the player must keep writing text into
-  // them, because that text is what we read.
+  // opacity, not display — the player must keep writing text into these, because the mirror path
+  // reads it.
   window.ytNative = (show = false) => { for (const el of document.querySelectorAll('.ytp-caption-window-container')) { el.style.opacity = show ? '1' : '0'; el.style.pointerEvents = 'none'; } };
   ytNative(false);
 
-  // ---- English track, if the player ever fetched one ----
+  // ---- borrow a signed track URL through the player ----
+  let borrowing = false;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const opt = (k, v) => { try { return v === undefined ? player.getOption('captions', k) : player.setOption('captions', k, v); } catch (e) { return null; } };
+  const seen = pre => Object.entries(window.YT_TRACKS).find(([l]) => l.toLowerCase().startsWith(pre));
+  const borrow = async pre => {
+    if (seen(pre)) return seen(pre);
+    const list = opt('tracklist') || [];
+    const want = list.find(t => (t.languageCode || '').toLowerCase().startsWith(pre));
+    if (!want) { console.warn(`[yt] player lists no "${pre}" track:`, list.map(t => t.languageCode).join(', ') || '(none)'); return null; }
+    const cur = opt('track');
+    borrowing = true;
+    try {
+      opt('track', {});                     // off, then on — a re-select forces a fresh request
+      await sleep(350);
+      opt('track', want);
+      for (let i = 0; i < 30 && !seen(pre); i++) await sleep(150);
+    } finally {
+      opt('track', cur && cur.languageCode ? cur : want);
+      await sleep(300);
+      borrowing = false;
+    }
+    return seen(pre);
+  };
   const parseJson3 = data => {
     const out = [];
     for (const ev of (data.events || [])) {
-      if (!ev.segs || ev.aAppend) continue;
+      if (!ev.segs || ev.aAppend) continue;  // aAppend = rolling-window duplicate
       const t = ev.segs.map(s => s.utf8).join('').split('\n').join(' ').trim();
-      if (t) out.push({ start: ev.tStartMs, end: ev.tStartMs + (ev.dDurationMs || 2000), text: t });
+      if (t) out.push({ start: ev.tStartMs, end: ev.tStartMs + (ev.dDurationMs || 2000), text: t, en: '' });
     }
     out.sort((a, b) => a.start - b.start);
     for (let i = 0; i < out.length - 1; i++) if (out[i].end > out[i + 1].start) out[i].end = out[i + 1].start - 1;
     return out;
   };
-  let enCues = [], borrowing = false;
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const seenEnglish = () => Object.entries(window.YT_TRACKS).find(([l]) => l.toLowerCase().startsWith('en'));
-  const opt = (k, v) => { try { return v === undefined ? player.getOption('captions', k) : player.setOption('captions', k, v); } catch (e) { return null; } };
-
-  const fetchEnglish = async () => {
-    const hit = seenEnglish();
-    if (!hit) return 0;
+  const pull = async hit => {
     const u = new URL(hit[1]); u.searchParams.delete('tlang'); u.searchParams.set('fmt', 'json3');
-    try {
-      enCues = parseJson3(await (await fetch(u.toString())).json());
-      console.log(`[yt] English track "${hit[0]}" v=${u.searchParams.get('v')} — ${enCues.length} cues, in sync, Gemini off.`);
-    } catch (e) { console.warn('[yt] English track fetch failed', e); }
-    return enCues.length;
+    try { return parseJson3(await (await fetch(u.toString())).json()); }
+    catch (e) { console.warn('[yt] track fetch failed', e); return []; }
   };
-  // If the borrowed track still reads wrong, drop it and go back to translating the line on screen.
-  window.ytUseGemini = () => { enCues = []; console.log('[yt] English source: Gemini'); };
 
-  // Borrow the English track: flip the player to it just long enough for it to be requested, then
-  // put the Chinese one back. Beats making you do it by hand, and the player API knows the exact
-  // track objects. The mirror pauses meanwhile so the English never lands in the Chinese line.
-  window.ytGrabEnglish = async () => {
-    if (await fetchEnglish()) return enCues.length;
-    const list = opt('tracklist') || [];
-    console.log('[yt] player tracks:', list.map(t => t.languageCode || t.vss_id).join(', ') || '(none)');
-    const enT = list.find(t => (t.languageCode || '').toLowerCase().startsWith('en'));
-    const cur = opt('track');
-    if (!enT || !cur) { console.warn('[yt] player API gave no track list — captions are not served over timedtext here. Staying on Gemini.'); return 0; }
-    borrowing = true;
-    try {
-      opt('track', enT);
-      for (let i = 0; i < 30 && !seenEnglish(); i++) await sleep(150);
-    } finally {
-      opt('track', cur);
-      await sleep(300);
-      borrowing = false;
-    }
-    if (!seenEnglish()) { console.warn('[yt] switched to English but no timedtext request followed — this title streams its captions. Staying on Gemini.'); return 0; }
-    return await fetchEnglish();
-  };
-  await window.ytGrabEnglish();
-  const enAt = ms => { let lo = 0, hi = enCues.length - 1, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (enCues[m].start <= ms) { best = m; lo = m + 1; } else hi = m - 1; } if (best < 0) return ''; const c = enCues[best]; return ms <= c.end + 400 ? c.text : ''; };
+  let cues = [];
+  const zhHit = await borrow(ZH);
+  if (zhHit) { cues = await pull(zhHit); console.log(`[yt] ${ZH} track "${zhHit[0]}" — ${cues.length} cues, preloading.`); }
+  if (!cues.length) console.warn('[yt] no fetchable Chinese track — mirroring the rendered captions instead, English will lag a beat.');
+  window.__cues = cues;
+
+  const at = ms => { let lo = 0, hi = cues.length - 1, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (cues[m].start <= ms) { best = m; lo = m + 1; } else hi = m - 1; } if (best < 0) return null; const c = cues[best]; return ms <= c.end + 400 ? c : null; };
 
   // ---- readings ----
   const MARKS = { a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', 'ü': 'ǖǘǚǜ' };
@@ -193,46 +178,84 @@
   box.addEventListener('mouseleave', hide);
   document.addEventListener('keydown', e => { if (e.key === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey && e.target.tagName !== 'INPUT') { mode = mode === 'py' ? 'jy' : 'py'; if (last) render(last); } });
 
-  // ---- Gemini fallback, one line at a time ----
-  const cache = new Map();
-  const translate = async text => {
-    if (cache.has(text)) return cache.get(text);
+  // ---- render loop ----
+  const nativeText = () => [...document.querySelectorAll(CAP)].map(s => s.textContent).join(' ').split('\n').join(' ').trim();
+  const liveCache = new Map();
+  let shownZh = '', seq = 0;
+  const translateOne = async text => {
+    if (liveCache.has(text)) return liveCache.get(text);
     const pr = `Translate this ${LANG} subtitle line to natural English. Reply with the translation only, no quotes.\n\n${text}`;
     try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 256 } }),
-      });
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 256 } }) });
       const j = await r.json();
       const out = (j.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
-      cache.set(text, out);
+      liveCache.set(text, out);
       return out;
     } catch (e) { return ''; }
   };
-
-  const nativeText = () => [...document.querySelectorAll(CAP)].map(s => s.textContent).join(' ').split('\n').join(' ').trim();
-  let shownZh = '', seq = 0;
   clearInterval(window.__ytRenderTimer);
-  window.__ytRenderTimer = setInterval(async () => {
+  window.__ytRenderTimer = setInterval(() => {
     ytNative(false);
-    if (borrowing) return;                        // English is on screen right now; don't mirror it
-    const text = nativeText();
-    if (text !== shownZh) {
-      shownZh = text;
-      zh.textContent = text;
-      r1.style.visibility = text ? 'visible' : 'hidden';
-      if (!enCues.length) {                       // Gemini path: fire on each new line
-        if (!text || KEY === 'YOUR_GEMINI_API_KEY') { en.textContent = ''; }
-        else {
-          const mine = ++seq;
-          translate(text).then(out => { if (mine === seq) en.textContent = out; });
-        }
+    if (borrowing) return;                  // a track swap is on screen; don't mirror it
+    if (cues.length) {                      // preloaded: both lines come from one cue
+      const c = at(video.currentTime * 1000);
+      zhEl.textContent = c ? c.text : '';
+      enEl.textContent = c ? (c.en || '') : '';
+    } else {                                // mirror: translate the line that just appeared
+      const text = nativeText();
+      if (text !== shownZh) {
+        shownZh = text;
+        zhEl.textContent = text;
+        if (!text || KEY === 'YOUR_GEMINI_API_KEY') enEl.textContent = '';
+        else { const mine = ++seq; translateOne(text).then(out => { if (mine === seq) enEl.textContent = out; }); }
       }
     }
-    if (enCues.length) en.textContent = enAt(video.currentTime * 1000);
-    r2.style.visibility = en.textContent ? 'visible' : 'hidden';
+    r1.style.visibility = zhEl.textContent ? 'visible' : 'hidden';
+    r2.style.visibility = enEl.textContent ? 'visible' : 'hidden';
   }, 120);
+  console.log('[yt] rendering. ytNative(true) restores YouTube\'s own line.');
 
-  console.log('[yt] mirroring captions into our overlay. YouTube\'s own line is hidden — ytNative(true) restores it.');
-  console.log('[yt] English source:', enCues.length ? 'YouTube track (in sync)' : (KEY === 'YOUR_GEMINI_API_KEY' ? 'none' : 'Gemini (lags a beat) — switch CC to English then back, and run ytGrabEnglish()'));
+  // ---- English ----
+  if (USE_YT_ENGLISH && cues.length) {
+    const enHit = await borrow('en');
+    if (enHit) {
+      const enCues = await pull(enHit);
+      for (const c of cues) {               // nearest English cue by start time
+        let lo = 0, hi = enCues.length - 1, best = -1;
+        while (lo <= hi) { const m = (lo + hi) >> 1; if (enCues[m].start <= c.start + 300) { best = m; lo = m + 1; } else hi = m - 1; }
+        if (best >= 0) c.en = enCues[best].text;
+      }
+      console.log(`[yt] English from YouTube's own track — ${enCues.length} cues.`);
+      return;
+    }
+  }
+  if (KEY === 'YOUR_GEMINI_API_KEY') { console.log('[yt] no KEY — Chinese + dictionary only.'); return; }
+  if (!cues.length) { console.log('[yt] English: Gemini, one line at a time.'); return; }
+
+  // Pre-translate the whole episode, batched and parallel. Lines fill in as batches land, so the
+  // start of the episode is usable within a couple of seconds.
+  const tr = async texts => {
+    const pr = `Translate each ${LANG} subtitle line to natural English. Return ONLY a JSON array of {"i":int,"en":string} for every input.\n\n` + JSON.stringify(texts.map((t, i) => ({ i, zh: t })));
+    for (let a = 0; a < 2; a++) {
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 8192 } }) });
+        const j = await r.json();
+        const arr = JSON.parse(j.candidates[0].content.parts[0].text);
+        const o = texts.map(() => '');
+        arr.forEach(x => { if (x.i >= 0 && x.i < o.length) o[x.i] = x.en; });
+        return o;
+      } catch (e) { if (a) return texts.map(() => ''); }
+    }
+  };
+  const starts = []; for (let i = 0; i < cues.length; i += BATCH) starts.push(i);
+  let done = 0;
+  for (let k = 0; k < starts.length; k += CONC) {
+    await Promise.all(starts.slice(k, k + CONC).map(async s => {
+      const out = await tr(cues.slice(s, s + BATCH).map(c => c.text));
+      out.forEach((t, j) => cues[s + j].en = t);
+      done += Math.min(BATCH, cues.length - s);
+      console.log('[yt] translated', done, '/', cues.length);
+    }));
+  }
+  console.log('[yt] English ready — in sync, whole episode.');
 })();

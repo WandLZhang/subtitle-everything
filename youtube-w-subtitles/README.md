@@ -62,12 +62,21 @@ way you can a free one — but the player still fetches the track, and the hook 
 console reports no URL captured, set Subtitles/CC → Off → the Chinese track, then re-run.
 
 ## When no caption URL is captured: [`script-rendered.js`](script-rendered.js)
-Both scripts above wait for the player to request `/api/timedtext` and then reuse that signed URL.
-Some purchased titles never make that request — the track arrives inside the media stream, so there
-is nothing to catch and the script gives up.
+Both scripts above wait for the player to request `/api/timedtext` and reuse that signed URL. They
+give up if it never comes.
 
-`script-rendered.js` reads the captions YouTube is already drawing on screen. Turn Subtitles/CC on,
-pick the Chinese track, and paste. Set `READING` to `'py'` (Mandarin) or `'jy'` (Cantonese).
+`script-rendered.js` takes the best path available. Turn Subtitles/CC on, pick the Chinese track,
+and paste. Set `READING` to `'py'` (Mandarin) or `'jy'` (Cantonese).
+
+**First it tries to fetch the Chinese track and pre-translate the whole episode**, same as
+`script.js`. The difference is how it gets the URL: the scripts above wait for the player to
+request one, which never happens if the track loaded before you pasted. This one borrows it —
+flips the caption track off and back on through the player API, which forces a fresh request. Both
+lines then render off one cue list, in sync.
+
+**If no track can be fetched**, it falls back to mirroring the captions YouTube draws and
+translating one line at a time. That always works, but it can't start until the line is on screen,
+so the English lands a few hundred ms late.
 
 **It mirrors the text into our own overlay** rather than hovering YouTube's caption elements.
 Pointing at those wakes the control bar, which pushes the caption up from under the cursor.
