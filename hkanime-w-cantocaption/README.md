@@ -68,8 +68,30 @@ misconfigured. Check any title in one line:
 ```
 
 Safari plays HEVC natively and handles HLS without hls.js at all. On Windows, Chrome and Edge work
-once **HEVC Video Extensions** is installed. The overlay itself doesn't care — it only needs a
-`<video>`.
+once **HEVC Video Extensions** is installed. Firefox has supported HEVC on macOS since v134. The
+overlay itself doesn't care — it only needs a `<video>`.
+
+The library is mixed, so screen a title before committing to it. Paste this on any episode page,
+then press play:
+
+```js
+(() => {
+  const seen = new Set();
+  const check = async u => {
+    if (seen.has(u)) return; seen.add(u);
+    const txt = await (await fetch(u)).text();
+    for (const m of txt.matchAll(/CODECS="([^"]+)"/g))
+      console.log(m[1], '→ playable here:', MediaSource.isTypeSupported(`video/mp4; codecs="${m[1]}"`));
+  };
+  const of = window.fetch;
+  window.fetch = function (...a) { const u = typeof a[0] === 'string' ? a[0] : (a[0] && a[0].url) || ''; if (/m3u8/.test(u)) check(u); return of.apply(this, a); };
+  const oo = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (m, u, ...r) { if (typeof u === 'string' && /m3u8/.test(u)) check(u); return oo.call(this, m, u, ...r); };
+  console.log('[codec] press play');
+})();
+```
+
+`avc1` is H.264 and plays anywhere. `hev1` or `hvc1` is HEVC.
 
 **Merged cues:** these are AI-generated srts, and some cues bundle several sentences under one
 timestamp. The strip can only offer the whole block as one clickable unit, so clicking it syncs to
