@@ -61,6 +61,18 @@ YouTube). Those don't expose `captionTracks` in the page source, so you can't pr
 way you can a free one — but the player still fetches the track, and the hook catches it. If the
 console reports no URL captured, set Subtitles/CC → Off → the Chinese track, then re-run.
 
+## When no caption URL is captured: [`script-rendered.js`](script-rendered.js)
+Both scripts above wait for the player to request `/api/timedtext` and then reuse that signed URL.
+Some purchased titles never make that request — the track arrives inside the media stream, so there
+is nothing to catch and the script gives up.
+
+`script-rendered.js` reads the captions YouTube is already drawing on screen. Turn Subtitles/CC on,
+pick the Chinese track, and paste. Set `READING` to `'py'` (Mandarin) or `'jy'` (Cantonese).
+
+It trades away lookahead: only the line on screen exists, so the English line is translated one cue
+at a time as it appears rather than the whole episode up front. Lines are cached, so a repeat is
+free. The hover dictionary behaves the same as everywhere else.
+
 ## Notes
 - **Never commit a real API key** — the file ships `YOUR_GEMINI_API_KEY`.
 - Quality is bounded by the source: an auto-generated track on noisy audio will have real errors,
