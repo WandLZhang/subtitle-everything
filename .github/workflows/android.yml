@@ -22,6 +22,11 @@ jobs:
           java-version: '17'
 
       - uses: android-actions/setup-android@v3
+        with:
+          # The action defaults to "tools platform-tools". Google removed the legacy `tools`
+          # package from the SDK repo, so the default now fails the job before it builds
+          # anything. The next step installs what we actually need.
+          packages: platform-tools
 
       - name: Install SDK packages
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
