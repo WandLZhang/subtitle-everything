@@ -6,6 +6,7 @@ import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
+import android.text.Spannable
 import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -26,6 +27,49 @@ import android.widget.TextView
 private class MaxHeightScrollView(context: Context, private val maxPx: Int) : ScrollView(context) {
     override fun onMeasure(widthSpec: Int, heightSpec: Int) {
         super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(maxPx, MeasureSpec.AT_MOST))
+    }
+}
+
+/**
+ * LinkMovementMethod asks the layout for getOffsetForHorizontal, which is an INSERTION POINT
+ * between two characters, not the character you touched. Tapping the left half of a glyph returns
+ * the offset before it — the end of the previous word — so the tap opened that word's neighbour.
+ * CJK glyphs are wide, so this missed constantly.
+ *
+ * Pick the character whose own box contains the touch instead. Same fix dict-core.js `hitChar`
+ * already carries on the browser side.
+ */
+private object WordTapMovementMethod : LinkMovementMethod() {
+    override fun onTouchEvent(widget: TextView, buffer: Spannable, event: MotionEvent): Boolean {
+        if (event.action != MotionEvent.ACTION_UP && event.action != MotionEvent.ACTION_DOWN) {
+            return super.onTouchEvent(widget, buffer, event)
+        }
+        val layout = widget.layout ?: return super.onTouchEvent(widget, buffer, event)
+        val x = event.x - widget.totalPaddingLeft + widget.scrollX
+        val y = event.y - widget.totalPaddingTop + widget.scrollY
+        val line = layout.getLineForVertical(y.toInt())
+
+        // Ignore taps past the end of the rendered text on this line, which would otherwise
+        // always resolve to the last word.
+        if (x < layout.getLineLeft(line) || x > layout.getLineRight(line)) return true
+
+        val caret = layout.getOffsetForHorizontal(line, x)
+        val end = layout.getLineEnd(line)
+        var hit = caret
+        for (i in intArrayOf(caret - 1, caret)) {
+            if (i < layout.getLineStart(line) || i >= end) continue
+            if (x >= layout.getPrimaryHorizontal(i) && x <= layout.getPrimaryHorizontal(i + 1)) {
+                hit = i
+                break
+            }
+        }
+        if (hit >= end) hit = end - 1
+        if (hit < 0) return true
+
+        val links = buffer.getSpans(hit, hit + 1, ClickableSpan::class.java)
+        if (links.isEmpty()) return true
+        if (event.action == MotionEvent.ACTION_UP) links[0].onClick(widget)
+        return true
     }
 }
 
@@ -145,7 +189,7 @@ class CaptionOverlay(private val ctx: Context) {
     private fun makeZh(): TextView = TextView(ctx).apply {
         textSize = zhSize
         setTextColor(zhColor)
-        movementMethod = LinkMovementMethod.getInstance()
+        movementMethod = WordTapMovementMethod
         setPadding(0, 4, 0, 0)
     }
 
