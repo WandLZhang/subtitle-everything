@@ -26,21 +26,30 @@ auto-generated, and its absence means a human wrote them.
 3. Console (**⌘⌥J** / F12) → paste → Return.
 4. Hover any blue word → reading + definition. Press **`r`** → pinyin. Yellow line = English.
 
-## How it works, and the three things that bite
+## How it works, and the four things that bite
 
 **1 · Captions sit behind a signed URL.** YouTube requires a session `pot` token on
 `/api/timedtext`; a hand-built URL returns `200 OK` with an empty body. So the script
 monkey-patches `fetch` and `XMLHttpRequest.open`, waits for the player to request its own
 caption track, and reuses that fully-signed URL. Dropping `&tlang` from it yields the
-**untranslated** original track.
+**untranslated** original track. The URL must carry this video's `v` — YouTube doesn't reload
+between videos, so a URL caught on the last one would load the wrong captions.
 
-**2 · ASR cues overlap.** Auto-generated tracks emit cues whose `dDurationMs` runs past the next
+**2 · The player requests the track it shows, and that's often English.** On a video with both a
+Cantonese and an English track, an English UI picks English, so the caught URL is the English one.
+The signature covers only `ip,ipbits,expire,v,ei,caps,opi,exp,xoaf` (the `sparams` list), which
+leaves `lang`, `kind`, `name` and `tlang` free to change. The script reads the track list from
+`player.getPlayerResponse()`, sets `lang` to the Cantonese track, and logs what share of the cues
+contain Chinese. Checked on an InspirLang video with `yue-HK` and `en-US`: the English URL
+rewritten this way equals the page's own Cantonese URL, parameter for parameter.
+
+**3 · ASR cues overlap.** Auto-generated tracks emit cues whose `dDurationMs` runs past the next
 cue's start (plus rolling-window duplicates flagged `aAppend`). Naively picking the first
 matching cue means an old line stays "active" and the overlay **falls progressively behind the
 speech** while YouTube's own captions keep up. Fix: drop `aAppend` events, trim each cue to end
 where the next begins, and binary-search for the **latest** cue at or before now.
 
-**3 · YouTube enforces Trusted Types.** Any `innerHTML` assignment throws
+**4 · YouTube enforces Trusted Types.** Any `innerHTML` assignment throws
 `This document requires 'TrustedHTML' assignment` and the popup silently dies. The dictionary
 popup is therefore built from DOM nodes (`createElement` / `textContent`) only.
 

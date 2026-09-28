@@ -6,7 +6,8 @@
 // Cantonese is poor. We now drop tlang, keep the 口語 ASR text, and translate with Gemini
 // instead — and every word becomes hoverable.
 //
-// Three YouTube-specific gotchas handled:
+// Four YouTube-specific gotchas handled:
+//   · the player fetches the track it SHOWS, often English -> rewrite `lang` to the Cantonese track
 //   · captions are behind a signed URL (PoP/`pot`)  -> hook fetch/XHR, reuse the player's own URL
 //   · ASR cues OVERLAP the following cue            -> trim to the next start + pick the LATEST cue,
 //                                                      otherwise the overlay drifts behind the speech
@@ -22,22 +23,41 @@
   const MODEL = 'gemini-flash-lite-latest', BATCH = 50, CONC = 8;
   const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
 
-  // 1. hook the network and grab the player's signed timedtext URL
+  // 1. hook the network and grab a signed timedtext URL for THIS video
+  const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+  const VID = new URLSearchParams(location.search).get('v') || '';
+  // YouTube never reloads between videos, so a URL caught on the previous one would load the wrong
+  // video's captions. Every URL carries `v`; keep only this one's.
+  if (window.YT_VID !== VID) { window.YT_VID = VID; window.YT_URL = ''; }
+  window.__ytNote = u => { try { if (new URL(u, location.href).searchParams.get('v') === VID) window.YT_URL = u; } catch (e) {} };
   if (!window.YT_HOOKED) {
-    window.YT_HOOKED = true; window.YT_URL = '';
+    window.YT_HOOKED = true;
     const of = window.fetch;
-    window.fetch = function (...a) { const u = a[0]; if (typeof u === 'string' && u.includes('timedtext')) window.YT_URL = u; return of.apply(this, a); };
+    window.fetch = function (...a) { const u = typeof a[0] === 'string' ? a[0] : (a[0] && a[0].url); if (typeof u === 'string' && u.includes('timedtext')) window.__ytNote(u); return of.apply(this, a); };
     const oo = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (m, u, ...a) { if (typeof u === 'string' && u.includes('timedtext')) window.YT_URL = u; return oo.call(this, m, u, ...a); };
+    XMLHttpRequest.prototype.open = function (m, u, ...a) { if (typeof u === 'string' && u.includes('timedtext')) window.__ytNote(u); return oo.call(this, m, u, ...a); };
   }
+  for (const e of performance.getEntriesByType('resource')) if (e.name.includes('timedtext')) window.__ytNote(e.name);   // CC was already on
+  const caught = () => { try { return new URL(window.YT_URL).searchParams.get('v') === VID; } catch (e) { return false; } };
   const ccBtn = document.querySelector('.ytp-subtitles-button');
-  const ccWasOff = ccBtn && ccBtn.getAttribute('aria-pressed') === 'false';
-  if (ccWasOff) { ccBtn.click(); console.log('[yt] CC on to capture the signed URL…'); }
-  for (let i = 0; i < 40 && !window.YT_URL; i++) await new Promise(r => setTimeout(r, 250));
-  if (!window.YT_URL) { alert('No caption URL captured — toggle CC off/on manually, then re-run.'); return; }
+  const ccOn = () => ccBtn && ccBtn.getAttribute('aria-pressed') === 'true';
+  if (!caught() && ccBtn && !ccOn()) { ccBtn.click(); console.log('[yt] CC on to capture the signed URL…'); }
+  for (let i = 0; i < 40 && !caught(); i++) await new Promise(r => setTimeout(r, 250));
+  if (ccOn()) ccBtn.click();                                // our overlay replaces YouTube's line
+  if (!caught()) { alert('No caption URL captured — toggle CC off/on manually, then re-run.'); return; }
 
-  // 2. fetch the ORIGINAL track (no tlang -> no YouTube translation)
-  const u = new URL(window.YT_URL); u.searchParams.delete('tlang'); u.searchParams.set('fmt', 'json3');
+  // 2. point that URL at the Cantonese track and fetch it untranslated. The player requests the track
+  // it SHOWS, and on a video that also has English that is usually English. `lang`, `kind`, `name`
+  // and `tlang` sit outside the signature (the `sparams` list), so they can change; the rest can't.
+  const lc = t => (t.languageCode || '').toLowerCase();
+  const tracks = player.getPlayerResponse?.()?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+  const pick = tracks.find(t => lc(t).startsWith('yue')) || tracks.find(t => lc(t) === 'zh-hk') || tracks.find(t => lc(t).startsWith('zh'));
+  console.log('[yt] tracks:', tracks.map(t => t.languageCode + (t.kind ? ` (${t.kind})` : '')).join(', ') || '(player gave none)');
+  const u = new URL(window.YT_URL);
+  u.searchParams.delete('tlang'); u.searchParams.delete('name'); u.searchParams.set('fmt', 'json3');
+  if (pick) { u.searchParams.set('lang', pick.languageCode); if (pick.kind) u.searchParams.set('kind', pick.kind); else u.searchParams.delete('kind'); }
+  const kind = u.searchParams.get('kind') || 'manual';
+  console.log('[yt] fetching lang=' + u.searchParams.get('lang'), 'kind=' + kind, '| signed params:', u.searchParams.get('sparams'));
   const data = await (await fetch(u.toString())).json();
   const cues = [];
   for (const ev of (data.events || [])) {
@@ -48,11 +68,12 @@
   cues.sort((a, b) => a.start - b.start);
   for (let i = 0; i < cues.length - 1; i++) if (cues[i].end > cues[i + 1].start) cues[i].end = cues[i + 1].start - 1;
   window.__cues = cues;
-  console.log(`[yt] ${cues.length} Cantonese cues (original ASR)`);
-  if (ccWasOff && ccBtn) ccBtn.click();                     // hide YouTube's own captions again
+  const isCJK = ch => { if (!ch) return false; const c = ch.codePointAt(0); return (c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff); };
+  const zhShare = cues.filter(c => [...c.text].some(isCJK)).length / (cues.length || 1);
+  console.log(`[yt] ${cues.length} cues · ${Math.round(zhShare * 100)}% contain Chinese · ${u.searchParams.get('lang')} ${kind}`);
+  if (zhShare < 0.5) console.warn('[yt] this track is mostly NOT Chinese — the video may have no Cantonese track.');
 
   // 3. overlay inside the player (so it survives fullscreen)
-  const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
   const video = document.querySelector('video.html5-main-video');
   document.getElementById('yt-dict-overlay')?.remove(); document.getElementById('yt-dict-pop')?.remove();
   clearInterval(window.__ytTimer);
@@ -82,7 +103,6 @@
   }, 100);
 
   // 4. hover dictionary (shared public canto-dict)
-  const isCJK = ch => { if (!ch) return false; const c = ch.codePointAt(0); return (c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff); };
   const tone = s => ({ '1': '#e15a5a', '2': '#e6a13a', '3': '#3fae4f', '4': '#5a8fe1', '5': '#b06fe0', '6': '#9aa0a6' }[(s || '').trim().slice(-1)] || '#c9ccd1');
   const fwd = (d, t, i) => { const m = Math.min(MAX_WORD, t.length - i); for (let n = m; n >= 1; n--) { const w = t.substr(i, n); if (d[w]) return { word: w, entries: d[w] }; } return null; };
   (async () => {
@@ -121,7 +141,7 @@
 
   // 5. English line via Gemini (reads far better than YouTube's MT on 口語)
   if (KEY === 'YOUR_GEMINI_API_KEY') { console.log('[yt] no KEY — 口語 + dictionary only.'); return; }
-  const tr = async texts => { const pr = 'Translate each Hong Kong colloquial-Cantonese subtitle to natural English (auto-transcribed; may have ASR errors — infer meaning). Return ONLY a JSON array of {"i":int,"en":string} for every input.\n\n' + JSON.stringify(texts.map((t, i) => ({ i, zh: t }))); for (let a = 0; a < 2; a++) { try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 8192 } }) }); const j = await r.json(); const arr = JSON.parse(j.candidates[0].content.parts[0].text); const o = texts.map(() => ''); arr.forEach(x => { if (x.i >= 0 && x.i < o.length) o[x.i] = x.en; }); return o; } catch (e) { if (a) return texts.map(() => ''); } } };
+  const tr = async texts => { const pr = 'Translate each Hong Kong colloquial-Cantonese subtitle to natural English' + (kind === 'asr' ? ' (auto-transcribed; may have ASR errors — infer meaning)' : '') + '. Return ONLY a JSON array of {"i":int,"en":string} for every input.\n\n' + JSON.stringify(texts.map((t, i) => ({ i, zh: t }))); for (let a = 0; a < 2; a++) { try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 8192 } }) }); const j = await r.json(); const arr = JSON.parse(j.candidates[0].content.parts[0].text); const o = texts.map(() => ''); arr.forEach(x => { if (x.i >= 0 && x.i < o.length) o[x.i] = x.en; }); return o; } catch (e) { if (a) return texts.map(() => ''); } } };
   const st = []; for (let i = 0; i < cues.length; i += BATCH) st.push(i);
   for (let k = 0; k < st.length; k += CONC) await Promise.all(st.slice(k, k + CONC).map(async s => { const e = await tr(cues.slice(s, s + BATCH).map(c => c.text)); e.forEach((t, j) => cues[s + j].en = t); }));
   console.log('[yt] English ready.');
