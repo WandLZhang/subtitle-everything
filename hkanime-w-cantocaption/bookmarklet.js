@@ -10,60 +10,54 @@
 // offset snaps to it. Click again any time it drifts. ✂ cut here adds a breakpoint when a stream
 // removes something mid-episode (see Code Geass below), so each stretch keeps its own offset.
 (async () => {
-  const SHOW = 'sakura';                 // sakura | codegeass | gintama | hxh | drslump
+  const SHOW = 'sakura';                 // sakura | sakuramovie2 | codegeass | gintama | hxh | spyfamily | spyfamily2 | drslump
   const EP = 1;                          // hkanime x-number + 1
   const KEY = 'YOUR_GEMINI_API_KEY';     // optional English line (https://aistudio.google.com/apikey)
 
   const MODEL = 'gemini-flash-lite-latest', BATCH = 50, CONC = 8;
   const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
   const RADIUS = 4;                      // phrases shown either side in the strip
+  const BOTTOM = '9%';                   // raise it (about '17%') when the video has burned-in subtitles
 
   // ---- show registry -------------------------------------------------------------------
-  // Each show returns candidate URLs, tried in order until one exists. Candidates (rather than
-  // one formula) absorb the per-show quirks noted in the README: Gintama's paired first file,
-  // Dr. Slump's odd E001 suffix, Code Geass's per-season renumbering.
-  const RAW = 'https://raw.githubusercontent.com/notHulK11/CantoCaptions/main/Subtitles/Series/Dubbed%20(AI-generated)/';
+  // Each show lists its CantoCaptions folder and picks the file by episode tag. Hand-built URLs
+  // broke for every show when the corpus moved everything under Anime/ and renamed the files
+  // (CRC hashes, [CCAI] prefixes) in early Oct 2026; a listing survives that. The contents API is
+  // CORS-open on public repos, and one request per paste fits the 60-an-hour limit.
   const p2 = n => String(n).padStart(2, '0'), p3 = n => String(n).padStart(3, '0'), enc = encodeURIComponent;
-  // For shows whose filenames hold the episode title, ask GitHub for the folder and match on the
-  // SxxEyy tag. The contents API is CORS-open on public repos; 60 requests an hour is plenty.
-  const listMatch = async (dir, tag) => {
-    const api = 'https://api.github.com/repos/notHulK11/CantoCaptions/contents/Subtitles/Series/Dubbed%20(AI-generated)/' + dir.split('/').map(enc).join('/');
+  const listMatch = async (dir, hit) => {
+    const api = 'https://api.github.com/repos/notHulK11/CantoCaptions/contents/Subtitles/' + dir.split('/').map(enc).join('/');
     try {
       const items = await (await fetch(api)).json();
-      return items.filter(i => i.name.includes(tag) && i.name.endsWith('.srt')).map(i => i.download_url);
+      if (!Array.isArray(items)) { console.warn('[wp] GitHub listing failed for', dir, items); return []; }
+      return items.filter(i => i.name.endsWith('.srt') && hit(i.name)).map(i => i.download_url);
     } catch (e) { console.warn('[wp] could not list', dir, e); return []; }
   };
+  const SER = 'Series/Dubbed (AI-generated)/Anime/', MOV = 'Movies/Dubbed (AI-generated)/Anime/';
   const SHOWS = {
-    sakura: {
-      title: '百變小櫻 MAGIC 咭 · Cardcaptor Sakura (70 eps)',
-      urls: ep => [RAW + 'Cardcaptor%20Sakura%20%5B1%5D%20-%20Original%20(1998)/' + enc(`[AI GEN V3][MiniMTBB] Cardcaptor Sakura.E${p2(ep)}.BD.yue.cht.srt`)],
-    },
+    // " - 65 (" and never the bare digits: "E058" also sits inside CRC hashes like [C0E058A0].
+    sakura: { title: '百變小櫻 MAGIC 咭 · Cardcaptor Sakura (70 eps)', urls: ep => listMatch(SER + 'Cardcaptor Sakura [1] - Original (1998)', n => n.includes(` - ${p2(ep)} (`)) },
+    sakuramovie2: { title: '百變小櫻 劇場版 · The Sealed Card', urls: () => listMatch(MOV + 'CardCaptor Sakura - The Sealed Card', () => true) },
     codegeass: {
       title: '叛逆的魯魯修 · Code Geass (50 eps, S1+S2)',
-      // hkanime cuts the ~92.6s OP, so the offset steps partway in. These segments are a decent
-      // starting point for E01; click a phrase to correct per episode.
+      // hkanime cuts the OP, so the offset steps partway in. These segments are a decent starting
+      // point for E01; click a phrase to correct per episode.
       segments: [{ at: 0, off: 0 }, { at: 117, off: 92.6 }],
-      urls: ep => { const s = ep <= 25 ? 1 : 2, e = ep <= 25 ? ep : ep - 25; return [RAW + `Code%20Geass%20(2006)/S${s}/` + enc(`[AI GEN] [AV1ophobia] Code Geass Lelouch of the Rebellion - S0${s}E${p2(e)} [BD][1080p][AV1][OPUS][Dual Audio].srt`)]; },
+      urls: ep => { const s = ep <= 25 ? 1 : 2, e = ep <= 25 ? ep : ep - 25; return listMatch(SER + `Code Geass (2006)/S${s}`, n => n.includes(`S0${s}E${p2(e)} `)); },
     },
     gintama: {
       title: '銀魂 · Gintama (316 eps)',
-      urls: ep => { // filenames carry the GLOBAL number in (nnn); seasons start at these globals
+      urls: ep => { // filenames carry the GLOBAL number in (nnn); seasons start at these globals; 001-002 share one file
         const starts = [1, 50, 100, 151, 202, 253, 266];
         let s = 1; for (let i = 0; i < starts.length; i++) if (ep >= starts[i]) s = i + 1;
-        const e = ep - starts[s - 1] + 1, d = RAW + `Gintama%20(2006)/S${s}/`;
-        return [d + enc(`[AI GEN] [Judas] Gintama - S${p2(s)}E${p2(e)} (${p3(ep)}).srt`),
-                d + enc(`[AI GEN] [Judas] Gintama - S${p2(s)}E${p2(e)}-E${p2(e + 1)} (${p3(ep)}-${p3(ep + 1)}).srt`),
-                d + enc(`[AI GEN] [Judas] Gintama - S${p2(s)}E${p2(e - 1)}-E${p2(e)} (${p3(ep - 1)}-${p3(ep)}).srt`)];
+        return listMatch(SER + `Gintama (2006)/S${s}`, n => n.includes(`(${p3(ep)})`) || n.includes(`(${p3(ep)}-`) || n.includes(`-${p3(ep)})`));
       },
     },
-    hxh: { title: '全職獵人 · Hunter x Hunter 2011 (148 eps)', urls: ep => [RAW + 'Hunter%20x%20Hunter%20(2011)/' + enc(`[AI GEN] [Judas] Hunter x Hunter (2011) - S01E${p3(ep)}.srt`)] },
-    // Filenames end in the EPISODE TITLE ("S01E01-OPERATION STRIX.srt"), so no formula reaches
-    // them. List the season folder and take the file whose name holds S01E07. One extra request,
-    // and it survives the corpus renaming a title. hkanime splits the seasons into separate pages,
-    // so each season is its own key and EP always starts at 1.
-    spyfamily: { title: 'SPY×FAMILY 間諜家家酒 S1 (25 eps)', urls: ep => listMatch('Spy x Family (2022)/S1', `S01E${p2(ep)}`) },
-    spyfamily2: { title: 'SPY×FAMILY 間諜家家酒 S2 (12 eps)', urls: ep => listMatch('Spy x Family (2022)/S2', `S02E${p2(ep)}`) },
-    drslump: { title: 'IQ博士 · Dr. Slump (243 eps)', urls: ep => [RAW + 'Dr.%20Slump%20(1981)/' + enc(`[AI GEN] Dr.Slump_1981.DVD.E${p3(ep)}.srt`), RAW + 'Dr.%20Slump%20(1981)/' + enc(`[AI GEN] Dr.Slump_1981.DVD.E${p3(ep)} - AI gen.srt`)] },
+    hxh: { title: '全職獵人 1999 · Hunter x Hunter', urls: ep => listMatch(SER + 'Hunter x Hunter (1999)', n => n === `[CCAI] ${p2(ep)}.srt`) },
+    // hkanime gives each season its own page, so each is its own key and EP starts at 1.
+    spyfamily: { title: 'SPY×FAMILY 間諜家家酒 S1 (25 eps)', urls: ep => listMatch(SER + 'Spy x Family (2022)/S1 - BD', n => n.includes(`S01E${p2(ep)}-`)) },
+    spyfamily2: { title: 'SPY×FAMILY 間諜家家酒 S2 (12 eps)', urls: ep => listMatch(SER + 'Spy x Family (2022)/S2 - BD', n => n.includes(`S02E${p2(ep)}-`)) },
+    drslump: { title: 'IQ博士 · Dr. Slump (243 eps)', urls: ep => listMatch(SER + 'Dr. Slump (1981)', n => n.includes(`.E${p3(ep)}.`)) },
   };
   const cfg = SHOWS[SHOW]; if (!cfg) { alert('Unknown SHOW. Options: ' + Object.keys(SHOWS).join(', ')); return; }
   window.SUB_SEGMENTS = (cfg.segments || [{ at: 0, off: 0 }]).map(s => ({ ...s }));
@@ -71,7 +65,8 @@
   const toMs = t => { t = t.trim().replace(',', '.'); const p = t.split(':'), s = (p[2] || '0').split('.'); return ((+p[0] * 60 + +p[1]) * 60 + +s[0]) * 1000 + +((s[1] || '0').padEnd(3, '0').slice(0, 3)); };
   const parse = x => { x = x.split('\r').join(''); if (x.charCodeAt(0) === 0xFEFF) x = x.slice(1); const c = []; for (const b of x.split('\n\n')) { const l = b.split('\n'); let i = l.findIndex(z => z.indexOf(' --> ') > -1); if (i < 0) continue; const tc = l[i].split(' --> '), s = toMs(tc[0]), e = toMs((tc[1] || '').split(' ')[0]), t = l.slice(i + 1).join('\n').trim(); if (t && e > s) c.push({ start: s, end: e, text: t, en: '' }); } return c; };
 
-  const v = document.querySelector('video'); if (!v) { alert('start playback first'); return; }
+  // bwp-video is Bilibili's stand-in for <video> on some streams; it has the same currentTime.
+  const v = document.querySelector('video') || document.querySelector('bwp-video'); if (!v) { alert('start playback first'); return; }
   let raw = null;
   for (const u of await cfg.urls(EP)) { try { const r = await fetch(u); if (r.ok) { raw = await r.text(); console.log('[wp]', decodeURIComponent(u.split('/').pop())); break; } } catch (e) {} }
   if (!raw) { alert(`No srt found for ${SHOW} ep ${EP}. Check the episode number (hkanime x-number + 1).`); return; }
@@ -80,7 +75,7 @@
 
   document.getElementById('wp-overlay')?.remove(); document.getElementById('wp-pop')?.remove();
   const box = document.createElement('div'); box.id = 'wp-overlay';
-  box.style.cssText = 'position:fixed;left:50%;bottom:9%;transform:translateX(-50%);z-index:2147483647;width:92%;max-width:1400px;text-align:center;pointer-events:auto;font-family:"Chiron Hei HK","PingFang HK","Noto Sans HK",system-ui';
+  box.style.cssText = `position:fixed;left:50%;bottom:${BOTTOM};transform:translateX(-50%);z-index:2147483647;width:92%;max-width:1400px;text-align:center;pointer-events:auto;font-family:"Chiron Hei HK","PingFang HK","Noto Sans HK",system-ui`;
   const strip = document.createElement('div');
   strip.style.cssText = 'display:flex;gap:10px;align-items:center;overflow-x:auto;scrollbar-width:thin;padding:8px 10px;background:rgba(0,0,0,.62);border-radius:10px;white-space:nowrap';
   const enWrap = document.createElement('div');
@@ -89,10 +84,12 @@
   enWrap.append(enLine);
   const bar = document.createElement('div');
   bar.style.cssText = 'margin-top:7px;display:inline-flex;gap:6px;align-items:center;background:rgba(0,0,0,.78);padding:6px 10px;border-radius:9px;font-size:13px;color:#e8eaed';
-  box.append(strip, enWrap, bar); document.body.append(box);
+  box.append(strip, enWrap, bar);
   const pop = document.createElement('div'); pop.id = 'wp-pop';
   pop.style.cssText = 'position:fixed;z-index:2147483647;max-width:360px;padding:9px 12px;border-radius:8px;background:rgba(17,19,23,.97);color:#e8eaed;font-size:14px;line-height:1.45;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);display:none;text-align:left';
-  document.body.append(pop);
+  // In true fullscreen only the fullscreen element's subtree renders, so live inside it.
+  const mount = () => { const host = document.fullscreenElement || document.webkitFullscreenElement || document.body; if (box.parentNode !== host) host.appendChild(box); if (pop.parentNode !== host) host.appendChild(pop); };
+  mount(); document.addEventListener('fullscreenchange', mount); document.addEventListener('webkitfullscreenchange', mount);
 
   const segFor = t => { const S = window.SUB_SEGMENTS; let s = S[0]; for (const x of S) if (x.at <= t) s = x; return s; };
   const idxAt = ms => { let lo = 0, hi = cues.length - 1, best = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (cues[m].start <= ms) { best = m; lo = m + 1; } else hi = m - 1; } return best; };
@@ -134,7 +131,7 @@
   strip.addEventListener('mouseenter', () => { hovering = true; });   // freeze while picking/reading
   strip.addEventListener('mouseleave', () => { hovering = false; });
   clearInterval(window.__wpTimer);
-  window.__wpTimer = setInterval(() => { if (hovering) return; const cur = idxAt(srtTime() * 1000); if (cur !== lastIdx) draw(); }, 120);
+  window.__wpTimer = setInterval(() => { mount(); if (hovering) return; const cur = idxAt(srtTime() * 1000); if (cur !== lastIdx) draw(); }, 120);
 
   // Bind BOTH mousedown and click. A player that swallows one still leaves the other, and the
   // 300 ms lockout stops a press firing the handler twice.

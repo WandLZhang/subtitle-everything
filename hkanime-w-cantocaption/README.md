@@ -41,17 +41,24 @@ Click the phrase you hear instead, or read the offset off the bar. Every press l
 offset to the console, so you can tell a press that landed from one that didn't.
 
 ## Shows and their quirks
-Set `SHOW` to one of these keys. Each entry builds candidate URLs and takes the first that exists,
-which is how the per-show naming mess below is absorbed. All verified against the live corpus.
+Set `SHOW` to one of these keys. Each entry lists its folder over the GitHub contents API and picks
+the file by episode tag, one request per paste. Hand-built URLs broke for every show in early
+Oct 2026, when CantoCaptions moved everything under `Anime/` and renamed the files with `[CCAI]`
+prefixes and CRC hashes; a listing survives renames. All verified against the live corpus 2026-10-07.
 
 | `SHOW` | Series | Eps | Quirk |
 |---|---|---|---|
-| `sakura` | 百變小櫻 MAGIC 咭 · Cardcaptor Sakura | 70 | Folder holds **two** naming sets (140 files); we pin the `[AI GEN V3]` one. Don't match on episode digits alone — `E058` also appears inside CRC hashes like `[C0E058A0]`. |
+| `sakura` | 百變小櫻 MAGIC 咭 · Cardcaptor Sakura | 70 | Matches ` - 65 (`, never the bare digits — `E058` also appears inside CRC hashes like `[C0E058A0]`. |
+| `sakuramovie2` | 百變小櫻 劇場版 · The Sealed Card | movie | One file in `Movies/`. Pairs with Bilibili `BV1Dx411p77h`, Blu-ray picture with the TVB Cantonese DVD audio and burned-in Chinese subtitles — set `BOTTOM` to about `'17%'`. |
 | `codegeass` | 叛逆的魯魯修 · Code Geass | 50 | hkanime runs S1+S2 as one 1–50 list; CantoCaptions splits them and **renumbers** (ep 26 = S2E01). hkanime also **cuts the OP**, so the offset steps partway in — hence the default two segments. **The step differs per episode:** ep 1 measured 92.6 s, ep 2 measured 127.8 s. Treat the preset as a starting point and click the first line you hear after the OP. |
 | `gintama` | 銀魂 · Gintama | 316 | Split across S1–S7; filenames carry the **global** number in `(nnn)` with seasons starting at 1/50/100/151/202/253/266. Episodes 1–2 share **one combined file**. |
-| `hxh` | 全職獵人 · Hunter × Hunter 2011 | 148 | Clean 3-digit numbering, no seasons. |
-| `drslump` | IQ博士 · Dr. Slump | 243 | E001 alone has a trailing ` - AI gen` in its filename. |
-| `spyfamily` / `spyfamily2` | SPY×FAMILY 間諜家家酒 S1 / S2 | 25 / 12 | Filenames end in the **episode title** (`S01E01-OPERATION STRIX.srt`), so no formula reaches them — the script lists the folder over the GitHub contents API and matches `S01E07`. hkanime gives each season its own page, so `EP` starts at 1 in both. **HEVC — see below.** |
+| `hxh` | 全職獵人 1999 · Hunter × Hunter | 62 on hkanime | Plain `[CCAI] 01.srt` to `78.srt`. The 2011 series left the corpus in the same reshuffle. |
+| `drslump` | IQ博士 · Dr. Slump (1981) | 243 | `.E001.` style numbering. The folder beside it is the 1997 remake. |
+| `spyfamily` / `spyfamily2` | SPY×FAMILY 間諜家家酒 S1 / S2 | 25 / 12 | Filenames end in the **episode title** (`S01E01-OPERATION STRIX`); the script matches `S01E07-`. hkanime gives each season its own page, so `EP` starts at 1 in both. **HEVC — see below.** |
+
+**Other sites.** The script runs on any page with a `<video>` (or Bilibili's `<bwp-video>`). It
+follows true fullscreen by mounting inside the fullscreen element. Raise `BOTTOM` when the video has
+burned-in subtitles, so the strip sits above them.
 
 Adding a show: copy an entry in the `SHOWS` registry and point it at the folder in
 [CantoCaptions](https://github.com/notHulK11/CantoCaptions/tree/main/Subtitles/Series). Check
