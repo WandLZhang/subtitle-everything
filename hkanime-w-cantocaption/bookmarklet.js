@@ -85,6 +85,21 @@
   const bar = document.createElement('div');
   bar.style.cssText = 'margin-top:7px;display:inline-flex;gap:6px;align-items:center;background:rgba(0,0,0,.78);padding:6px 10px;border-radius:9px;font-size:13px;color:#e8eaed';
   box.append(strip, enWrap, bar);
+  // Drag handle. The strip can't be the handle, because mousedown there syncs to a phrase. The
+  // grip sits above the strip, so it stays after "hide bar". The first drag swaps the centred
+  // bottom anchor for plain left/top pixels. Capture-phase listeners keep the player from eating
+  // the moves.
+  const grip = document.createElement('div'); grip.textContent = '⠿ drag'; grip.title = 'drag to move the subtitles';
+  grip.style.cssText = 'position:absolute;left:10px;top:-24px;padding:2px 10px;border-radius:7px 7px 0 0;background:rgba(0,0,0,.7);color:#c9ccd1;font-size:13px;cursor:move;user-select:none';
+  box.append(grip);
+  grip.onmousedown = e => {
+    e.preventDefault(); e.stopPropagation();
+    const r = box.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    Object.assign(box.style, { transform: 'none', bottom: 'auto', left: r.left + 'px', top: r.top + 'px' });
+    const move = ev => { box.style.left = (ev.clientX - dx) + 'px'; box.style.top = (ev.clientY - dy) + 'px'; };
+    const up = () => { document.removeEventListener('mousemove', move, true); document.removeEventListener('mouseup', up, true); };
+    document.addEventListener('mousemove', move, true); document.addEventListener('mouseup', up, true);
+  };
   const pop = document.createElement('div'); pop.id = 'wp-pop';
   pop.style.cssText = 'position:fixed;z-index:2147483647;max-width:360px;padding:9px 12px;border-radius:8px;background:rgba(17,19,23,.97);color:#e8eaed;font-size:14px;line-height:1.45;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);display:none;text-align:left';
   // In true fullscreen only the fullscreen element's subtree renders, so live inside it.

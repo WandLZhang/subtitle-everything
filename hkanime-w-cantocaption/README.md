@@ -30,6 +30,7 @@ it. That's the whole workflow — no arithmetic, no early/late guessing. Also:
 | −0.5s / +0.5s | fine trim |
 | ✂ cut here | add a breakpoint — everything after it keeps its own offset |
 | ✓ hide bar | hide the controls, keep the strip |
+| ⠿ drag | the tab above the strip; drag it to move the whole overlay off burned-in subtitles |
 
 `✂ cut here` exists because some streams remove content **mid-episode**, which makes one flat
 offset impossible (see Code Geass below). Console equivalents: `wpSync(n)` while cue *n* is
