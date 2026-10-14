@@ -92,6 +92,11 @@
   const grip = document.createElement('div'); grip.textContent = '⠿ drag'; grip.title = 'drag to move the subtitles';
   grip.style.cssText = 'position:absolute;left:10px;top:-24px;padding:2px 10px;border-radius:7px 7px 0 0;background:rgba(0,0,0,.7);color:#c9ccd1;font-size:13px;cursor:move;user-select:none';
   box.append(grip);
+  // "hide bar" only hides it, and this tab beside the grip brings it back.
+  const barTab = document.createElement('div'); barTab.textContent = 'show bar'; barTab.title = 'bring the sync controls back';
+  barTab.style.cssText = 'position:absolute;left:92px;top:-24px;padding:2px 10px;border-radius:7px 7px 0 0;background:rgba(0,0,0,.7);color:#c8f0cf;font-size:13px;cursor:pointer;user-select:none;display:none';
+  barTab.onmousedown = e => { e.preventDefault(); e.stopPropagation(); bar.style.display = 'inline-flex'; barTab.style.display = 'none'; };
+  box.append(barTab);
   grip.onmousedown = e => {
     e.preventDefault(); e.stopPropagation();
     const r = box.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
@@ -164,7 +169,7 @@
   bar.append(mkb('◀ earlier line', () => window.wpStep(-1)), mkb('−0.5s', nudge(-0.5)), lbl, mkb('+0.5s', nudge(0.5)),
     mkb('later line ▶', () => window.wpStep(1)),
     mkb('✂ cut here', () => window.wpCut(), 'border:1px solid #b06fe0;background:#2b2233;color:#e3d4f5'),
-    mkb('✓ hide bar', () => bar.remove(), 'border:1px solid #3fae4f;background:#1e3d24;color:#c8f0cf'));
+    mkb('✓ hide bar', () => { bar.style.display = 'none'; barTab.style.display = 'block'; }, 'border:1px solid #3fae4f;background:#1e3d24;color:#c8f0cf'));
   label(); draw();
 
   // ---- hover dictionary ----
