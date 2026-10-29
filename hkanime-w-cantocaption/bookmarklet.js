@@ -55,7 +55,9 @@
     },
     hxh: { title: '全職獵人 1999 · Hunter x Hunter', urls: ep => listMatch(SER + 'Hunter x Hunter (1999)', n => n === `[CCAI] ${p2(ep)}.srt`) },
     // hkanime gives each season its own page, so each is its own key and EP starts at 1.
-    spyfamily: { title: 'SPY×FAMILY 間諜家家酒 S1 (25 eps)', urls: ep => listMatch(SER + 'Spy x Family (2022)/S1 - BD', n => n.includes(`S01E${p2(ep)}-`)) },
+    // +0.9 s measured on ep 2: six lines matched against hkanime's own 書面語 subtitle track, which
+    // is timed to its video, put the srt 0.89–0.95 s behind it.
+    spyfamily: { title: 'SPY×FAMILY 間諜家家酒 S1 (25 eps)', segments: [{ at: 0, off: 0.9 }], urls: ep => listMatch(SER + 'Spy x Family (2022)/S1 - BD', n => n.includes(`S01E${p2(ep)}-`)) },
     spyfamily2: { title: 'SPY×FAMILY 間諜家家酒 S2 (12 eps)', urls: ep => listMatch(SER + 'Spy x Family (2022)/S2 - BD', n => n.includes(`S02E${p2(ep)}-`)) },
     drslump: { title: 'IQ博士 · Dr. Slump (243 eps)', urls: ep => listMatch(SER + 'Dr. Slump (1981)', n => n.includes(`.E${p3(ep)}.`)) },
   };

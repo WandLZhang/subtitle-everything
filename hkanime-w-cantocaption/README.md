@@ -55,7 +55,7 @@ prefixes and CRC hashes; a listing survives renames. All verified against the li
 | `gintama` | 銀魂 · Gintama | 316 | Split across S1–S7; filenames carry the **global** number in `(nnn)` with seasons starting at 1/50/100/151/202/253/266. Episodes 1–2 share **one combined file**. |
 | `hxh` | 全職獵人 1999 · Hunter × Hunter | 62 on hkanime | Plain `[CCAI] 01.srt` to `78.srt`. The 2011 series left the corpus in the same reshuffle. |
 | `drslump` | IQ博士 · Dr. Slump (1981) | 243 | `.E001.` style numbering. The folder beside it is the 1997 remake. |
-| `spyfamily` / `spyfamily2` | SPY×FAMILY 間諜家家酒 S1 / S2 | 25 / 12 | Filenames end in the **episode title** (`S01E01-OPERATION STRIX`); the script matches `S01E07-`. hkanime gives each season its own page, so `EP` starts at 1 in both. **HEVC — see below.** |
+| `spyfamily` / `spyfamily2` | SPY×FAMILY 間諜家家酒 S1 / S2 | 25 / 12 | Filenames end in the **episode title** (`S01E01-OPERATION STRIX`); the script matches `S01E07-`. hkanime gives each season its own page, so `EP` starts at 1 in both. S1 starts at **+0.9 s**, measured on ep 2 against hkanime's own subtitle track. That track is 書面語 and the player shows it by default, so turn it off in the player's CC menu. **HEVC — see below.** |
 
 **Other sites.** The script runs on any page with a `<video>` (or Bilibili's `<bwp-video>`). It
 follows true fullscreen by mounting inside the fullscreen element. Raise `BOTTOM` when the video has
