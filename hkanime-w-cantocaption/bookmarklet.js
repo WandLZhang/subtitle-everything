@@ -10,7 +10,7 @@
 // offset snaps to it. Click again any time it drifts. ✂ cut here adds a breakpoint when a stream
 // removes something mid-episode (see Code Geass below), so each stretch keeps its own offset.
 (async () => {
-  const SHOW = 'sakura';                 // sakura | sakuramovie2 | codegeass | gintama | hxh | spyfamily | spyfamily2 | drslump
+  const SHOW = 'sakura';                 // sakura | sakuramovie2 | clearcard | codegeass | gintama | hxh | spyfamily | spyfamily2 | drslump
   const EP = 1;                          // hkanime x-number + 1
   const KEY = 'YOUR_GEMINI_API_KEY';     // optional English line (https://aistudio.google.com/apikey)
 
@@ -38,6 +38,8 @@
     // " - 65 (" and never the bare digits: "E058" also sits inside CRC hashes like [C0E058A0].
     sakura: { title: '百變小櫻 MAGIC 咭 · Cardcaptor Sakura (70 eps)', urls: ep => listMatch(SER + 'Cardcaptor Sakura [1] - Original (1998)', n => n.includes(` - ${p2(ep)} (`)) },
     sakuramovie2: { title: '百變小櫻 劇場版 · The Sealed Card', urls: () => listMatch(MOV + 'CardCaptor Sakura - The Sealed Card', () => true) },
+    // No offset: on ep 1, 129 lines matched hkanime's own subtitle track with a 0.03 s median gap.
+    clearcard: { title: '百變小櫻Clear咭 · Cardcaptor Sakura: Clear Card (22 eps)', urls: ep => listMatch(SER + 'Cardcaptor Sakura [2] - Clear Card (2018)/BD', n => n.includes(`Hen~ ${p2(ep)} (`)) },
     codegeass: {
       title: '叛逆的魯魯修 · Code Geass (50 eps, S1+S2)',
       // hkanime cuts the OP, so the offset steps partway in. These segments are a decent starting

@@ -51,6 +51,7 @@ prefixes and CRC hashes; a listing survives renames. All verified against the li
 |---|---|---|---|
 | `sakura` | 百變小櫻 MAGIC 咭 · Cardcaptor Sakura | 70 | Matches ` - 65 (`, never the bare digits — `E058` also appears inside CRC hashes like `[C0E058A0]`. |
 | `sakuramovie2` | 百變小櫻 劇場版 · The Sealed Card | movie | One file in `Movies/`. Pairs with Bilibili `BV1Dx411p77h`, Blu-ray picture with the TVB Cantonese DVD audio and burned-in Chinese subtitles — set `BOTTOM` to about `'17%'`. |
+| `clearcard` | 百變小櫻Clear咭 · Cardcaptor Sakura: Clear Card | 22 | hkanime id `145`, H.264, so it plays in Chrome on a Mac. Lines up with no offset: 129 lines on ep 1 matched hkanime's own subtitle track at a 0.03 s median gap. Matches `Hen~ 01 (`. |
 | `codegeass` | 叛逆的魯魯修 · Code Geass | 50 | hkanime runs S1+S2 as one 1–50 list; CantoCaptions splits them and **renumbers** (ep 26 = S2E01). hkanime also **cuts the OP**, so the offset steps partway in — hence the default two segments. **The step differs per episode:** ep 1 measured 92.6 s, ep 2 measured 127.8 s. Treat the preset as a starting point and click the first line you hear after the OP. |
 | `gintama` | 銀魂 · Gintama | 316 | Split across S1–S7; filenames carry the **global** number in `(nnn)` with seasons starting at 1/50/100/151/202/253/266. Episodes 1–2 share **one combined file**. |
 | `hxh` | 全職獵人 1999 · Hunter × Hunter | 62 on hkanime | Plain `[CCAI] 01.srt` to `78.srt`. The 2011 series left the corpus in the same reshuffle. |
