@@ -112,7 +112,14 @@
   };
   const pull = async hit => {
     const u = new URL(hit[1]); u.searchParams.delete('tlang'); u.searchParams.set('fmt', 'json3');
-    try { return parseJson3(await (await fetch(u.toString())).json()); }
+    // Time it out and log what came back: a stalled or empty response otherwise stops the script
+    // with nothing in the console.
+    const ac = new AbortController(); setTimeout(() => ac.abort(), 10000);
+    try {
+      const r = await fetch(u.toString(), { signal: ac.signal }); const body = await r.text();
+      console.log(`[yt] timedtext ${r.status} · ${body.length} bytes · lang=${u.searchParams.get('lang')}`);
+      return body ? parseJson3(JSON.parse(body)) : [];
+    }
     catch (e) { console.warn('[yt] track fetch failed', e); return []; }
   };
 

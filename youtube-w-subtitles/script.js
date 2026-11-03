@@ -57,8 +57,42 @@
   u.searchParams.delete('tlang'); u.searchParams.delete('name'); u.searchParams.set('fmt', 'json3');
   if (pick) { u.searchParams.set('lang', pick.languageCode); if (pick.kind) u.searchParams.set('kind', pick.kind); else u.searchParams.delete('kind'); }
   const kind = u.searchParams.get('kind') || 'manual';
-  console.log('[yt] fetching lang=' + u.searchParams.get('lang'), 'kind=' + kind, '| signed params:', u.searchParams.get('sparams'));
-  const data = await (await fetch(u.toString())).json();
+  console.log('[yt] fetching lang=' + u.searchParams.get('lang'), 'kind=' + kind, '| signed params:', u.searchParams.get('sparams'), '| pot:', u.searchParams.has('pot'));
+  // A caption fetch can stall or come back empty — a URL caught without its session token returns
+  // 200 with no body — and an un-timed await then stops the script with nothing in the console.
+  // So time it out, log what came back, and on failure ask the player for the track fresh.
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const fetchTrack = async (url, ms = 10000) => {
+    const ac = new AbortController(), timer = setTimeout(() => ac.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ac.signal });
+      const body = await r.text();
+      console.log(`[yt] timedtext ${r.status} · ${body.length} bytes · ${r.headers.get('content-type')}`);
+      if (!body) return null;
+      try { return JSON.parse(body); } catch (e) { console.warn('[yt] timedtext body is not JSON:', body.slice(0, 200)); return null; }
+    } catch (e) { console.warn('[yt] timedtext fetch failed:', e.name, e.message); return null; }
+    finally { clearTimeout(timer); }
+  };
+  let data = await fetchTrack(u.toString());
+  if (!data && pick) {
+    console.log('[yt] retrying: asking the player to request the ' + pick.languageCode + ' track itself…');
+    const opt = (k, v) => { try { return v === undefined ? player.getOption('captions', k) : player.setOption('captions', k, v); } catch (e) { return null; } };
+    if (!(opt('tracklist') || []).length && ccBtn) { ccBtn.click(); await sleep(800); }   // loads the captions module
+    const want = (opt('tracklist') || []).find(t => lc(t) === lc(pick));
+    if (want) {
+      window.YT_URL = '';
+      opt('track', {}); await sleep(350); opt('track', want);
+      for (let i = 0; i < 40 && !caught(); i++) await sleep(150);
+      opt('track', {});                                       // hide YouTube's line again
+      if (caught()) {
+        const u2 = new URL(window.YT_URL); u2.searchParams.delete('tlang'); u2.searchParams.set('fmt', 'json3');
+        console.log('[yt] fresh URL lang=' + u2.searchParams.get('lang'), '| pot:', u2.searchParams.has('pot'));
+        data = await fetchTrack(u2.toString());
+      }
+    } else console.warn('[yt] the player has no track list to retry with');
+  }
+  if (ccOn()) ccBtn.click();
+  if (!data) { alert('Could not load the caption track. Send me the [yt] lines from the console.'); return; }
   const cues = [];
   for (const ev of (data.events || [])) {
     if (!ev.segs || ev.aAppend) continue;                   // aAppend = rolling-window duplicate
