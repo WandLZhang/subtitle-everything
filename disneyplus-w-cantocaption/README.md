@@ -14,7 +14,7 @@ handling (below), so it gets its own script.
    (e.g. `S02E35 The Quiet Game`), optionally set **`KEY`**, and copy the whole file.
 3. Console (**⌘⌥J** / F12) → paste → Return. You should see `[wp] NNN cues · video time now …`.
 4. **Align** — see below. Then click **✓ done** to hide the sync bar and clock.
-5. Hover a blue word for its meaning + jyutping; press **`r`** to switch to pinyin.
+5. Hover a blue word for its meaning + jyutping; press **`r`** to switch to pinyin with tone marks (`hǎo`).
    The yellow line is the English translation (needs `KEY`).
 
 ## Aligning (the only fiddly part)

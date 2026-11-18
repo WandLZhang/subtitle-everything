@@ -29,7 +29,81 @@
     return null;
   }
 
-  if (typeof module !== 'undefined' && module.exports) { module.exports = { isCJK, toneColor, fwdMatch }; return; }
+  // Pinyin tone marks and readingFor, the same code as browser-dictionary/dict-core.js. Jyutping
+  // keeps its digits. They're its standard notation, and six Cantonese tones don't map onto the four
+  // pinyin marks. The nasal rows are arrays because n̄ and the m marks are two code points each.
+  const MARKS = {
+    a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', 'ü': 'ǖǘǚǜ',
+    A: 'ĀÁǍÀ', E: 'ĒÉĚÈ', I: 'ĪÍǏÌ', O: 'ŌÓǑÒ', U: 'ŪÚǓÙ', 'Ü': 'ǕǗǙǛ',
+    n: ['n\u0304', 'ń', 'ň', 'ǹ'], m: ['m\u0304', 'ḿ', 'm\u030C', 'm\u0300'],
+    N: ['N\u0304', 'Ń', 'Ň', 'Ǹ'], M: ['M\u0304', 'Ḿ', 'M\u030C', 'M\u0300'],
+  };
+  // 'a' wins, else 'o'/'e', else the last of i/u/ü. No vowel means a syllabic nasal (唔 n2, 呣 m2).
+  function vowelIndex(s) {
+    const l = s.toLowerCase();
+    for (const v of 'aoe') { const i = l.indexOf(v); if (i >= 0) return i; }
+    let last = -1;
+    for (let k = 0; k < l.length; k++) if (l[k] === 'i' || l[k] === 'u' || l[k] === 'ü') last = k;
+    if (last >= 0) return last;
+    const n = l.indexOf('n'), m = l.indexOf('m');
+    return n < 0 ? m : m < 0 ? n : Math.min(n, m);
+  }
+  /** "hao3" -> "hǎo", "lu:4" and "lv4" -> "lǜ", "n2" -> "ń", "de5" -> "de". Anything else passes through. */
+  function accent(syllable) {
+    const orig = (syllable || '').trim();
+    const last = orig.charAt(orig.length - 1);
+    if (!orig || last < '0' || last > '9') return orig;   // no tone digit: a letter, a word, punctuation
+    // CC-CEDICT writes ü as "u:" and CC-Canto often as "v" (nv3, lv4); a bare "V" (V領) stays a V
+    const s = orig.slice(0, -1).split('u:').join('ü').split('U:').join('Ü').split('v').join('ü').split('V').join('Ü');
+    const isLetter = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === 'ü' || c === 'Ü';
+    if (![...s].some(isLetter)) return orig;              // a number such as 雙11 keeps its digits
+    const t = +last;
+    if (t < 1 || t > 4) return s;                         // 5 / 0 = neutral, no mark
+    const i = vowelIndex(s);
+    const row = i < 0 ? null : MARKS[s.charAt(i)];
+    if (!row) return orig;
+    return s.slice(0, i) + row[t - 1] + s.slice(i + 1);
+  }
+  // CC-Canto glues some syllables together (yi1ju4) and leaves punctuation on others (da3,), so cut
+  // after each tone digit as well as at spaces.
+  function syllables(reading) {
+    const out = [];
+    const isDigit = c => c >= '0' && c <= '9';
+    for (const tok of (reading || '').split(' ')) {
+      let cur = '';
+      for (let i = 0; i < tok.length; i++) {
+        cur += tok[i];
+        if (isDigit(tok[i]) && !(i + 1 < tok.length && isDigit(tok[i + 1]))) { out.push(cur); cur = ''; }
+      }
+      if (cur) out.push(cur);
+    }
+    return out;
+  }
+  // About 14% of headwords have pinyin and no jyutping, and the old fallback printed that Mandarin
+  // under the "jyutping" label. Use the word's own reading, else build it per character, else show
+  // the other language and say which it is.
+  function compose(dict, word, want) {
+    const out = [];
+    for (const ch of word) {
+      const e = dict[ch] && dict[ch][0];
+      const v = e && (e[want] || '').trim();
+      if (!v) return '';
+      out.push(syllables(v)[0]);                          // one character = one syllable
+    }
+    return out.join(' ');
+  }
+  /** -> { text, isPinyin, composed, wrongLang }. `mode` is 'jy' or 'py'. */
+  function readingFor(dict, word, entry, mode) {
+    const want = mode === 'py' ? 'py' : 'jy';
+    const other = want === 'py' ? 'jy' : 'py';
+    const own = ((entry && entry[want]) || '').trim();
+    if (own) return { text: own, isPinyin: want === 'py', composed: false, wrongLang: false };
+    const c = compose(dict, word, want);
+    if (c) return { text: c, isPinyin: want === 'py', composed: true, wrongLang: false };
+    return { text: ((entry && entry[other]) || '').trim(), isPinyin: other === 'py', composed: false, wrongLang: true };
+  }
+
+  if (typeof module !== 'undefined' && module.exports) { module.exports = { isCJK, toneColor, fwdMatch, accent, syllables, readingFor }; return; }
   if (typeof document === 'undefined') return;
 
   // ---------------------------------- browser ----------------------------------
@@ -56,8 +130,6 @@
       'font-family:"Chiron Hei HK","PingFang HK","Noto Sans HK","Microsoft JhengHei",sans-serif';
     document.body.appendChild(pop);
 
-    const reading = e => (mode === 'py' ? e.py : e.jy) || e.py || e.jy || '';
-
     // Built from DOM nodes rather than innerHTML: sites with a Trusted Types policy
     // (YouTube, for one) refuse innerHTML assignment outright and the popup silently dies.
     function render(m) {
@@ -69,14 +141,19 @@
       for (const e of m.entries.slice(0, 5)) {
         const row = document.createElement('div');
         row.style.margin = '3px 0';
-        const rd = reading(e);
-        if (rd) {
-          for (const syl of rd.split(' ')) {
-            if (!syl) continue;
+        const r = readingFor(dict, m.word, e, mode);
+        if (r.text) {
+          for (const syl of syllables(r.text)) {
             const s = document.createElement('span');
-            s.textContent = syl + ' ';
-            s.style.cssText = 'font-weight:600;color:' + toneColor(syl);
+            s.textContent = (r.isPinyin ? accent(syl) : syl) + ' ';
+            s.style.cssText = 'font-weight:600;color:' + toneColor(syl);   // colour from the digit
             row.appendChild(s);
+          }
+          if (r.wrongLang || r.composed) {
+            const n = document.createElement('span');
+            n.textContent = r.wrongLang ? (r.isPinyin ? '(pinyin, no jyutping) ' : '(jyutping, no pinyin) ') : '(per character) ';
+            n.style.color = '#7b8087';
+            row.appendChild(n);
           }
         } else {
           const s = document.createElement('span'); s.textContent = '· '; row.appendChild(s);

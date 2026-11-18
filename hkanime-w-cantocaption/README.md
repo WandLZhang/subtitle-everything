@@ -15,7 +15,8 @@ caption already exists, so no ASR/OCR is needed. **Replaces Substital.**
 You get a **scrollable phrase strip**: earlier lines faded to the left, the current line big in the
 centre, later lines faded to the right. Plus:
 - **Hover any phrase** (including faded ones) → pop-up with **English definition** + **reading**
-  (tone-coloured); press **`r`** to toggle **jyutping** (default) ⇄ **pinyin**.
+  (tone-coloured); press **`r`** to toggle **jyutping** (default) ⇄ **pinyin**. Pinyin shows tone
+  marks (`jiàn dié`); jyutping keeps its digits (`gaan3 dip6`), which are its standard notation.
 - If you set **`KEY`**, an **English line** under the strip fills in as it plays.
 
 ## Syncing — click the line you hear

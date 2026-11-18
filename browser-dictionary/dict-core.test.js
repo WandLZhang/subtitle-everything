@@ -2,7 +2,7 @@
 // Covers the three helpers inherited from hkanime-w-cantocaption/dict.js plus the two ported from
 // the Android app: tone marks (Pinyin.kt) and the reading fallback chain (Dict.kt).
 const assert = require('assert');
-const { isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, attach, lookupIn } = require('./dict-core.js');
+const { isCJK, toneColor, fwdMatch, accent, accentAll, syllables, readingFor, attach, lookupIn } = require('./dict-core.js');
 
 // ---- isCJK ----
 assert.strictEqual(isCJK('喜'), true, '喜 is CJK');
@@ -44,6 +44,24 @@ assert.strictEqual(accent('hao'), 'hao', 'already toneless passes through');
 assert.strictEqual(accent(''), '', 'empty passes through');
 assert.strictEqual(accent('Zhong1'), 'Zhōng', 'capitalised syllable keeps its case');
 assert.strictEqual(accentAll('ni3 hao3'), 'nǐ hǎo', 'whole reading');
+// CC-Canto writes ü as v in 420 syllables (女 nv3, 律 lv4). A bare V is a letter.
+assert.strictEqual(accent('nv3'), 'nǚ', 'v -> ü');
+assert.strictEqual(accent('lve4'), 'lüè', 'v -> ü, mark on the e');
+assert.strictEqual(accent('Lv3'), 'Lǚ', 'capital L, v -> ü');
+assert.strictEqual(accent('V'), 'V', 'a bare V stays a V');
+// Numbers in a reading (雙11) keep their digits instead of losing the last one.
+assert.strictEqual(accent('11'), '11', 'a number keeps its digits');
+// Syllabic nasals take the mark on the n or m (唔 n2 in 556 CC-Canto syllables, 呣 m2).
+assert.strictEqual(accent('n2'), 'ń', 'n2 -> ń');
+assert.strictEqual(accent('m2'), 'ḿ', 'm2 -> ḿ');
+assert.strictEqual(accent('m4'), 'm\u0300', 'm4 -> m + combining grave');
+assert.strictEqual(accent('ng2'), 'ńg', 'ng2 -> ńg');
+assert.strictEqual(accent('hm5'), 'hm', 'neutral nasal drops the digit');
+// CC-Canto glues 2,479 tokens (yi1ju4) and leaves punctuation on some (da3,).
+assert.deepStrictEqual(syllables('yi1ju4 da3,'), ['yi1', 'ju4', 'da3', ','], 'split after each tone digit');
+assert.deepStrictEqual(syllables('shuang1 11'), ['shuang1', '11'], 'a multi-digit number stays whole');
+assert.deepStrictEqual(syllables('  ni3  hao3 '), ['ni3', 'hao3'], 'extra spaces produce no empty pieces');
+assert.strictEqual(accentAll('yi1ju4 wu2'), 'yī jù wú', 'glued reading gets every mark');
 // accentAll is pinyin-only. Fed jyutping it silently produces nonsense — tone 3 is not ǒ in a
 // six-tone system — which is why render() accents only when readingFor() reports isPinyin.
 assert.strictEqual(accentAll('zung1 gwok3'), 'zūng gwǒk', 'jyutping through accentAll is garbage, by construction');
@@ -126,4 +144,4 @@ assert.strictEqual(doc.listeners.length, first, 'attach re-arms after a rewrite 
 attach(doc, {});
 assert.strictEqual(doc.listeners.length, first, 'and does not stack duplicates on the new body either');
 
-console.log('PASS — isCJK / toneColor / fwdMatch / accent / readingFor / lookupIn / attach re-arm all OK');
+console.log('PASS — isCJK / toneColor / fwdMatch / accent / syllables / readingFor / lookupIn / attach re-arm all OK');

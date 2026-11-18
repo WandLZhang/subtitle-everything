@@ -24,7 +24,7 @@ auto-generated, and its absence means a human wrote them.
 1. Open the video (CC can be off — the script toggles it on to capture the caption URL, then off again).
 2. Open [`script.js`](script.js), optionally set **`KEY`**, copy the whole file.
 3. Console (**⌘⌥J** / F12) → paste → Return.
-4. Hover any blue word → reading + definition. Press **`r`** → pinyin. Yellow line = English.
+4. Hover any blue word → reading + definition. Press **`r`** → pinyin with tone marks (`jiàn dié`). Yellow line = English.
 
 ## How it works, and the four things that bite
 

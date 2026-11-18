@@ -33,12 +33,17 @@
 
   // Tone marks. Jyutping is deliberately left as digits — that IS its standard notation; it has no
   // diacritic convention, and Cantonese's six tones don't map onto the four pinyin marks.
+  // The nasal rows are arrays because n̄ and the m marks are a base letter plus a combining mark.
+  // That's two code points, which charAt() would split.
   const MARKS = {
     a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', 'ü': 'ǖǘǚǜ',
     A: 'ĀÁǍÀ', E: 'ĒÉĚÈ', I: 'ĪÍǏÌ', O: 'ŌÓǑÒ', U: 'ŪÚǓÙ', 'Ü': 'ǕǗǙǛ',
+    n: ['n\u0304', 'ń', 'ň', 'ǹ'], m: ['m\u0304', 'ḿ', 'm\u030C', 'm\u0300'],
+    N: ['N\u0304', 'Ń', 'Ň', 'Ǹ'], M: ['M\u0304', 'Ḿ', 'M\u030C', 'M\u0300'],
   };
 
   // Where the mark goes: 'a' wins, else 'o'/'e', else the last of i/u/ü (so "iu"->u, "ui"->i).
+  // A syllable with no vowel is a syllabic nasal (唔 n2, 呣 m2, 嗯 ng2), and the mark goes on the n or m.
   function vowelIndex(s) {
     const l = s.toLowerCase();
     let i = l.indexOf('a'); if (i >= 0) return i;
@@ -46,28 +51,48 @@
     i = l.indexOf('e'); if (i >= 0) return i;
     let last = -1;
     for (let k = 0; k < l.length; k++) if (l[k] === 'i' || l[k] === 'u' || l[k] === 'ü') last = k;
-    return last >= 0 ? last : -1;
+    if (last >= 0) return last;
+    const n = l.indexOf('n'), m = l.indexOf('m');
+    return n < 0 ? m : m < 0 ? n : Math.min(n, m);
   }
 
-  /** "hao3" -> "hǎo", "lu:4" -> "lǜ", "de5" -> "de". Anything unexpected passes through. */
+  /** "hao3" -> "hǎo", "lu:4" and "lv4" -> "lǜ", "n2" -> "ń", "de5" -> "de". Anything else passes through. */
   function accent(syllable) {
-    let s = (syllable || '').trim();
-    if (!s) return s;
-    s = s.split('u:').join('ü').split('U:').join('Ü');   // CC-CEDICT writes ü as u:
-    const last = s.charAt(s.length - 1);
-    if (last < '0' || last > '9') return s;
+    const orig = (syllable || '').trim();
+    const last = orig.charAt(orig.length - 1);
+    if (!orig || last < '0' || last > '9') return orig;   // no tone digit: a letter, a word, punctuation
+    // CC-CEDICT writes ü as "u:" and CC-Canto often as "v" (nv3, lv4). Converting only inside a toned
+    // syllable keeps a bare "V" (V領) a V.
+    const s = orig.slice(0, -1).split('u:').join('ü').split('U:').join('Ü').split('v').join('ü').split('V').join('Ü');
+    const isLetter = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === 'ü' || c === 'Ü';
+    if (![...s].some(isLetter)) return orig;              // a number such as 雙11 keeps its digits
     const t = +last;
-    s = s.slice(0, -1);
-    if (t < 1 || t > 4) return s;                        // 5 / 0 = neutral, no mark
+    if (t < 1 || t > 4) return s;                         // 5 / 0 = neutral, no mark
     const i = vowelIndex(s);
-    if (i < 0) return s;
-    const row = MARKS[s.charAt(i)];
-    if (!row) return s;
-    return s.slice(0, i) + row.charAt(t - 1) + s.slice(i + 1);
+    const row = i < 0 ? null : MARKS[s.charAt(i)];
+    if (!row) return orig;
+    return s.slice(0, i) + row[t - 1] + s.slice(i + 1);
+  }
+
+  // Readings are space-separated, but CC-Canto glues some syllables together ("yi1ju4") and leaves
+  // punctuation on others ("da3,"). Cutting after each tone digit gives every syllable its own mark
+  // and colour.
+  function syllables(reading) {
+    const out = [];
+    const isDigit = c => c >= '0' && c <= '9';
+    for (const tok of (reading || '').split(' ')) {
+      let cur = '';
+      for (let i = 0; i < tok.length; i++) {
+        cur += tok[i];
+        if (isDigit(tok[i]) && !(i + 1 < tok.length && isDigit(tok[i + 1]))) { out.push(cur); cur = ''; }
+      }
+      if (cur) out.push(cur);
+    }
+    return out;
   }
 
   function accentAll(reading) {
-    return (reading || '').split(' ').filter(Boolean).map(accent).join(' ');
+    return syllables(reading).map(accent).join(' ');
   }
 
   /**
@@ -82,7 +107,7 @@
       const e = dict[ch] && dict[ch][0];
       const v = e && (e[want] || '').trim();
       if (!v) return '';
-      out.push(v.split(' ')[0]);                         // one character = one syllable
+      out.push(syllables(v)[0]);                         // one character = one syllable
     }
     return out.join(' ');
   }
@@ -178,8 +203,7 @@
         const row = doc.createElement('div');
         row.style.margin = '3px 0';
         const r = readingFor(m.chars || {}, m.word, e, mode);
-        for (const syl of (r.text || '').split(' ')) {
-          if (!syl) continue;
+        for (const syl of syllables(r.text)) {
           const b = doc.createElement('b');
           b.textContent = (r.isPinyin ? accent(syl) : syl) + ' ';
           b.style.color = toneColor(syl);
@@ -284,7 +308,7 @@
     };
   }
 
-  const API = { attach, lookupIn, isCJK, toneColor, fwdMatch, accent, accentAll, readingFor, MAX_WORD, DICT_URL };
+  const API = { attach, lookupIn, isCJK, toneColor, fwdMatch, accent, accentAll, syllables, readingFor, MAX_WORD, DICT_URL };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else globalThis.BrowserDict = API;
 })();

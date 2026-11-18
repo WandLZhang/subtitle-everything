@@ -306,8 +306,9 @@ class CaptionOverlay(private val ctx: Context) {
             // We got the other system iff wrongLang, so: shown-is-pinyin == (wantJyut == wrongLang)
             val shownIsPinyin = wantJyut == r.wrongLang
             // Pinyin shows tone marks (nǐ hǎo); jyutping keeps digits (that's its standard).
-            // Colour comes from the RAW syllable — accenting removes the digit.
-            for (syl in r.text.split(" ")) {
+            // Colour comes from the RAW syllable — accenting removes the digit. syllables() also
+            // cuts the glued ones (yi1ju4) so each gets its own mark and colour.
+            for (syl in Pinyin.syllables(r.text)) {
                 if (syl.isBlank()) continue
                 val s = sb.length
                 sb.append(if (shownIsPinyin) Pinyin.accent(syl) else syl)

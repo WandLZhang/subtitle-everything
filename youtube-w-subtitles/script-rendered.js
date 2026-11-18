@@ -132,15 +132,25 @@
   const at = ms => { let lo = 0, hi = cues.length - 1, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (cues[m].start <= ms) { best = m; lo = m + 1; } else hi = m - 1; } if (best < 0) return null; const c = cues[best]; return ms <= c.end + 400 ? c : null; };
 
   // ---- readings ----
-  const MARKS = { a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', 'ü': 'ǖǘǚǜ' };
-  const vowelIdx = s => { const l = s.toLowerCase(); let i = l.indexOf('a'); if (i >= 0) return i; i = l.indexOf('o'); if (i >= 0) return i; i = l.indexOf('e'); if (i >= 0) return i; let last = -1; for (let k = 0; k < l.length; k++) if ('iuü'.includes(l[k])) last = k; return last; };
-  const accent = sy => { let s = sy.trim(); if (!s) return s; s = s.split('u:').join('ü').split('U:').join('Ü'); const last = s[s.length - 1]; if (last < '0' || last > '9') return s; const t = +last; s = s.slice(0, -1); if (t < 1 || t > 4) return s; const i = vowelIdx(s); if (i < 0) return s; const m = MARKS[s[i].toLowerCase()]; if (!m) return s; const ch = m[t - 1]; return s.slice(0, i) + (s[i] === s[i].toUpperCase() && s[i] !== s[i].toLowerCase() ? ch.toUpperCase() : ch) + s.slice(i + 1); };
+  // Pinyin tone marks: ni3 hao3 -> nǐ hǎo. Jyutping keeps its digits, which are its standard
+  // notation. The colour still comes from the digit. Same logic as browser-dictionary/dict-core.js,
+  // which carries the tests.
+  const MARKS = { a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', 'ü': 'ǖǘǚǜ', A: 'ĀÁǍÀ', E: 'ĒÉĚÈ', I: 'ĪÍǏÌ', O: 'ŌÓǑÒ', U: 'ŪÚǓÙ', 'Ü': 'ǕǗǙǛ', n: ['n\u0304', 'ń', 'ň', 'ǹ'], m: ['m\u0304', 'ḿ', 'm\u030C', 'm\u0300'], N: ['N\u0304', 'Ń', 'Ň', 'Ǹ'], M: ['M\u0304', 'Ḿ', 'M\u030C', 'M\u0300'] };
+  const vowelIndex = s => { const l = s.toLowerCase(); for (const v of 'aoe') { const i = l.indexOf(v); if (i >= 0) return i; } let k = -1; for (let j = 0; j < l.length; j++) if ('iuü'.includes(l[j])) k = j; if (k < 0) { const n = l.indexOf('n'), m = l.indexOf('m'); k = n < 0 ? m : m < 0 ? n : Math.min(n, m); } return k; };
+  // CC-CEDICT writes ü as "u:" and CC-Canto often as "v" (nv3, lv4). Convert only inside a toned
+  // syllable, so a bare "V" (V領) stays a V. A piece with no letters is a number (雙11) and keeps its
+  // digits. Syllabic nasals (唔 n2, 呣 m2) take the mark on the n or m.
+  const accent = sy => { const o = (sy || '').trim(), dg = o.charAt(o.length - 1); if (!o || dg < '0' || dg > '9') return o; const s = o.slice(0, -1).split('u:').join('ü').split('U:').join('Ü').split('v').join('ü').split('V').join('Ü'), t = +dg; if (![...s].some(c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === 'ü' || c === 'Ü')) return o; if (t < 1 || t > 4) return s; const i = vowelIndex(s), mk = i < 0 ? null : MARKS[s.charAt(i)]; return mk ? s.slice(0, i) + mk[t - 1] + s.slice(i + 1) : o; };
+  // Readings are space-separated, but CC-Canto glues some syllables together (yi1ju4) and leaves
+  // punctuation on others (da3,). Cutting after each tone digit gives every syllable its own mark
+  // and colour.
+  const syllables = rd => { const out = []; for (const tok of (rd || '').split(' ')) { let cur = ''; for (let i = 0; i < tok.length; i++) { cur += tok[i]; const dg = tok[i] >= '0' && tok[i] <= '9', nx = tok[i + 1] >= '0' && tok[i + 1] <= '9'; if (dg && !nx) { out.push(cur); cur = ''; } } if (cur) out.push(cur); } return out; };
   const isCJK = ch => { if (!ch) return false; const c = ch.codePointAt(0); return (c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff); };
   const tone = s => ({ '1': '#e15a5a', '2': '#e6a13a', '3': '#3fae4f', '4': '#5a8fe1', '5': '#b06fe0', '6': '#9aa0a6' }[(s || '').trim().slice(-1)] || '#c9ccd1');
   const fwd = (t, i) => { const m = Math.min(MAX_WORD, t.length - i); for (let n = m; n >= 1; n--) { const w = t.substr(i, n); if (D[w]) return { word: w, entries: D[w] }; } return null; };
 
   let mode = READING === 'jy' ? 'jy' : 'py', last = null;
-  const compose = (word, key) => { const out = []; for (const ch of word) { const ce = D[ch]; const v = ce && ce[0] && (ce[0][key] || '').trim(); if (!v) return ''; out.push(v.split(' ')[0]); } return out.join(' '); };
+  const compose = (word, key) => { const out = []; for (const ch of word) { const ce = D[ch]; const v = ce && ce[0] && (ce[0][key] || '').trim(); if (!v) return ''; out.push(syllables(v)[0]); } return out.join(' '); };
   const readingFor = (word, e) => {
     const want = mode, other = mode === 'py' ? 'jy' : 'py';
     const own = (e[want] || '').trim(); if (own) return { rd: own, isPy: mode === 'py' };
@@ -155,7 +165,7 @@
     for (const e of m.entries.slice(0, 5)) {
       const row = document.createElement('div'); row.style.margin = '3px 0';
       const r = readingFor(m.word, e);
-      for (const syl of (r.rd || '').split(' ')) { if (!syl) continue; const b = document.createElement('b'); b.textContent = (r.isPy ? accent(syl) : syl) + ' '; b.style.color = tone(syl); row.appendChild(b); }
+      for (const syl of syllables(r.rd)) { const b = document.createElement('b'); b.textContent = (r.isPy ? accent(syl) : syl) + ' '; b.style.color = tone(syl); row.appendChild(b); }
       if (r.alt) { const w = document.createElement('span'); w.textContent = r.isPy ? '(pinyin — no jyutping) ' : '(jyutping — no pinyin) '; w.style.color = '#7b8087'; row.appendChild(w); }
       const d = document.createElement('span'); d.textContent = e.d.slice(0, 4).join('; '); d.style.color = '#c9ccd1'; row.appendChild(d);
       pop.appendChild(row);

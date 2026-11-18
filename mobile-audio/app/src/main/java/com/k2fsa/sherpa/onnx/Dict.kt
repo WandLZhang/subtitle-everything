@@ -83,7 +83,7 @@ object Dict {
             val e = lookup(ch.toString()).firstOrNull() ?: return ""
             val v = (if (jyut) e.jy else e.py).trim()
             if (v.isEmpty()) return ""
-            out.add(v.split(" ")[0])          // one character = one syllable
+            out.add(Pinyin.syllables(v).firstOrNull() ?: return "")   // one character = one syllable
         }
         return out.joinToString(" ")
     }
