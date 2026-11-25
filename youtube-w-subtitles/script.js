@@ -13,14 +13,15 @@
 //                                                      otherwise the overlay drifts behind the speech
 //   · YouTube enforces Trusted Types                -> popup is built from DOM nodes, never innerHTML
 //
-// SETUP: set KEY only if you want the English line (https://aistudio.google.com/apikey).
+// SETUP: set KEY only if you want the English line (https://aistudio.google.com/apikey). MODEL is
+// gemini-4-neon, which needs a key from a project with billing; a free key gets only gemini-4-hydrogen.
 // NEVER commit a real key.
 //
 // USE: open the video -> console (⌘⌥J / F12) -> paste. CC may be off; it toggles CC on to
 // capture the signed URL and back off again so you don't get two sets of subtitles.
 (async () => {
   const KEY = 'YOUR_GEMINI_API_KEY';
-  const MODEL = 'gemini-flash-lite-latest', BATCH = 50, CONC = 8;
+  const MODEL = 'gemini-4-neon', BATCH = 50, CONC = 8;
   const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
 
   // 1. hook the network and grab a signed timedtext URL for THIS video
@@ -191,10 +192,35 @@
     document.addEventListener('keydown', e => { if (e.key === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey && e.target.tagName !== 'INPUT') { mode = mode === 'py' ? 'jy' : 'py'; localStorage.setItem('canto-dict-reading', mode); if (last) render(last); } });
   })();
 
-  // 5. English line via Gemini (reads far better than YouTube's MT on 口語)
+  // 5. English line via Gemini (reads far better than YouTube's MT on 口語). One model and no
+  // fallback, so an error names the service that failed. Tested 2026-11-25 on 50 real lines:
+  // gemini-flash-lite-latest (then 3.5 Flash-Lite) put a stray "}" after the array, which blanked the
+  // batch; gemini-4-neon with the schema below returned all 50 in 29 s. The schema makes the API
+  // return valid JSON. Neon thinks first (2,585 thinking tokens on that batch), and thinking counts
+  // against maxOutputTokens, hence 32768. Requests and raw responses go to console.debug (Verbose).
   if (KEY === 'YOUR_GEMINI_API_KEY') { console.log('[yt] no KEY — 口語 + dictionary only.'); return; }
-  const tr = async texts => { const pr = 'Translate each Hong Kong colloquial-Cantonese subtitle to natural English' + (kind === 'asr' ? ' (auto-transcribed; may have ASR errors — infer meaning)' : '') + '. Return ONLY a JSON array of {"i":int,"en":string} for every input.\n\n' + JSON.stringify(texts.map((t, i) => ({ i, zh: t }))); for (let a = 0; a < 2; a++) { try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 8192 } }) }); const j = await r.json(); const arr = JSON.parse(j.candidates[0].content.parts[0].text); const o = texts.map(() => ''); arr.forEach(x => { if (x.i >= 0 && x.i < o.length) o[x.i] = x.en; }); return o; } catch (e) { if (a) return texts.map(() => ''); } } };
+  const SCHEMA = { type: 'ARRAY', items: { type: 'OBJECT', properties: { i: { type: 'INTEGER' }, en: { type: 'STRING' } }, required: ['i', 'en'] } };
+  const tr = async (texts, s) => {
+    const span = `cues ${s + 1}-${s + texts.length}`;
+    const pr = 'Translate each Hong Kong colloquial-Cantonese subtitle to natural English' + (kind === 'asr' ? ' (auto-transcribed; may have ASR errors — infer meaning)' : '') + '. Return ONLY a JSON array of {"i":int,"en":string} for every input.\n\n' + JSON.stringify(texts.map((t, i) => ({ i, zh: t })));
+    const req = { contents: [{ parts: [{ text: pr }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2, maxOutputTokens: 32768 } };
+    console.debug(`[yt] ${MODEL} request, ${span}:`, req);
+    for (let a = 1; a <= 2; a++) {
+      let status = 0, body = '';
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req) });
+        status = r.status; body = await r.text();
+        console.debug(`[yt] ${MODEL} response ${status}, ${span}:`, body);
+        const parts = JSON.parse(body).candidates[0].content.parts;
+        const arr = JSON.parse(parts.filter(p => !p.thought).map(p => p.text || '').join(''));
+        const o = texts.map(() => ''); arr.forEach(x => { if (x.i >= 0 && x.i < o.length) o[x.i] = x.en; }); return o;
+      } catch (e) { console.warn(`[yt] ${MODEL} failed on ${span}, attempt ${a} of 2: HTTP ${status}, ${e.message}. Response body:`, body); }
+    }
+    return texts.map(() => '');
+  };
+  const t0 = performance.now(); let done = 0;
+  console.log(`[yt] translating ${cues.length} cues with ${MODEL}; the English line fills in as each batch of ${BATCH} lands…`);
   const st = []; for (let i = 0; i < cues.length; i += BATCH) st.push(i);
-  for (let k = 0; k < st.length; k += CONC) await Promise.all(st.slice(k, k + CONC).map(async s => { const e = await tr(cues.slice(s, s + BATCH).map(c => c.text)); e.forEach((t, j) => cues[s + j].en = t); }));
-  console.log('[yt] English ready.');
+  for (let k = 0; k < st.length; k += CONC) await Promise.all(st.slice(k, k + CONC).map(async s => { const e = await tr(cues.slice(s, s + BATCH).map(c => c.text), s); e.forEach((t, j) => cues[s + j].en = t); done += e.length; console.log(`[yt] translated ${done} / ${cues.length}`); }));
+  console.log(`[yt] English ready in ${Math.round((performance.now() - t0) / 1000)} s · ${cues.filter(c => c.en).length} of ${cues.length} lines translated.`);
 })();
