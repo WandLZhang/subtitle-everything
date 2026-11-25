@@ -25,7 +25,7 @@
   const LANG = 'Mandarin Chinese';          // used only in the translation prompt
   const ZH = 'zh';                          // caption language prefix to fetch
   const USE_YT_ENGLISH = false;
-  const MODEL = 'gemini-flash-lite-latest', BATCH = 50, CONC = 8;
+  const MODEL = 'gemini-3.5-flash-lite', BATCH = 50, CONC = 8;   // pinned and fastest; see script.js
   const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
   const CAP = '.ytp-caption-segment';
 
@@ -202,13 +202,15 @@
   const translateOne = async text => {
     if (liveCache.has(text)) return liveCache.get(text);
     const pr = `Translate this ${LANG} subtitle line to natural English. Reply with the translation only, no quotes.\n\n${text}`;
+    let status = 0, body = '';
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 256 } }) });
-      const j = await r.json();
-      const out = (j.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+      status = r.status; body = await r.text();
+      console.debug(`[yt] ${MODEL} live line, response ${status}:`, text, body);
+      const out = JSON.parse(body).candidates[0].content.parts.filter(p => !p.thought).map(p => p.text || '').join('').trim();
       liveCache.set(text, out);
       return out;
-    } catch (e) { return ''; }
+    } catch (e) { console.warn(`[yt] ${MODEL} failed on a live line: HTTP ${status}, ${e.message}. Response body:`, body); return ''; }
   };
   clearInterval(window.__ytRenderTimer);
   window.__ytRenderTimer = setInterval(() => {
@@ -250,29 +252,39 @@
   if (!cues.length) { console.log('[yt] English: Gemini, one line at a time.'); return; }
 
   // Pre-translate the whole episode, batched and parallel. Lines fill in as batches land, so the
-  // start of the episode is usable within a couple of seconds.
-  const tr = async texts => {
+  // start of the episode is usable within a couple of seconds. Same request as script.js: without
+  // the schema, 3.5 Flash-Lite once put a stray "}" after the array and the batch came back blank;
+  // the schema makes the API return valid JSON. A failed batch logs the model, the HTTP status and
+  // the response body. Requests and raw responses go to console.debug (Verbose).
+  const SCHEMA = { type: 'ARRAY', items: { type: 'OBJECT', properties: { i: { type: 'INTEGER' }, en: { type: 'STRING' } }, required: ['i', 'en'] } };
+  const tr = async (texts, s) => {
+    const span = `cues ${s + 1}-${s + texts.length}`;
     const pr = `Translate each ${LANG} subtitle line to natural English. Return ONLY a JSON array of {"i":int,"en":string} for every input.\n\n` + JSON.stringify(texts.map((t, i) => ({ i, zh: t })));
-    for (let a = 0; a < 2; a++) {
+    const req = { contents: [{ parts: [{ text: pr }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2, maxOutputTokens: 32768 } };
+    console.debug(`[yt] ${MODEL} request, ${span}:`, req);
+    for (let a = 1; a <= 2; a++) {
+      let status = 0, body = '';
       try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: pr }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 8192 } }) });
-        const j = await r.json();
-        const arr = JSON.parse(j.candidates[0].content.parts[0].text);
-        const o = texts.map(() => '');
-        arr.forEach(x => { if (x.i >= 0 && x.i < o.length) o[x.i] = x.en; });
-        return o;
-      } catch (e) { if (a) return texts.map(() => ''); }
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req) });
+        status = r.status; body = await r.text();
+        console.debug(`[yt] ${MODEL} response ${status}, ${span}:`, body);
+        const parts = JSON.parse(body).candidates[0].content.parts;
+        const arr = JSON.parse(parts.filter(p => !p.thought).map(p => p.text || '').join(''));
+        const o = texts.map(() => ''); arr.forEach(x => { if (x.i >= 0 && x.i < o.length) o[x.i] = x.en; }); return o;
+      } catch (e) { console.warn(`[yt] ${MODEL} failed on ${span}, attempt ${a} of 2: HTTP ${status}, ${e.message}. Response body:`, body); }
     }
+    return texts.map(() => '');
   };
+  const t0 = performance.now();
   const starts = []; for (let i = 0; i < cues.length; i += BATCH) starts.push(i);
   let done = 0;
   for (let k = 0; k < starts.length; k += CONC) {
     await Promise.all(starts.slice(k, k + CONC).map(async s => {
-      const out = await tr(cues.slice(s, s + BATCH).map(c => c.text));
+      const out = await tr(cues.slice(s, s + BATCH).map(c => c.text), s);
       out.forEach((t, j) => cues[s + j].en = t);
       done += Math.min(BATCH, cues.length - s);
       console.log('[yt] translated', done, '/', cues.length);
     }));
   }
-  console.log('[yt] English ready — in sync, whole episode.');
+  console.log(`[yt] English ready in ${Math.round((performance.now() - t0) / 1000)} s · ${cues.filter(c => c.en).length} of ${cues.length} lines translated, in sync, whole episode.`);
 })();
