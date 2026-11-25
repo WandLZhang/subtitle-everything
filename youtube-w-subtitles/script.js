@@ -13,15 +13,14 @@
 //                                                      otherwise the overlay drifts behind the speech
 //   · YouTube enforces Trusted Types                -> popup is built from DOM nodes, never innerHTML
 //
-// SETUP: set KEY only if you want the English line (https://aistudio.google.com/apikey). MODEL is
-// gemini-4-neon, which needs a key from a project with billing; a free key gets only gemini-4-hydrogen.
+// SETUP: set KEY only if you want the English line (https://aistudio.google.com/apikey).
 // NEVER commit a real key.
 //
 // USE: open the video -> console (⌘⌥J / F12) -> paste. CC may be off; it toggles CC on to
 // capture the signed URL and back off again so you don't get two sets of subtitles.
 (async () => {
   const KEY = 'YOUR_GEMINI_API_KEY';
-  const MODEL = 'gemini-4-neon', BATCH = 50, CONC = 8;
+  const MODEL = 'gemini-3.5-flash-lite', BATCH = 50, CONC = 8;
   const DICT_URL = 'https://storage.googleapis.com/wz-canto-dict/canto-dict.min.json', MAX_WORD = 8;
 
   // 1. hook the network and grab a signed timedtext URL for THIS video
@@ -193,11 +192,14 @@
   })();
 
   // 5. English line via Gemini (reads far better than YouTube's MT on 口語). One model and no
-  // fallback, so an error names the service that failed. Tested 2026-11-25 on 50 real lines:
-  // gemini-flash-lite-latest (then 3.5 Flash-Lite) put a stray "}" after the array, which blanked the
-  // batch; gemini-4-neon with the schema below returned all 50 in 29 s. The schema makes the API
-  // return valid JSON. Neon thinks first (2,585 thinking tokens on that batch), and thinking counts
-  // against maxOutputTokens, hence 32768. Requests and raw responses go to console.debug (Verbose).
+  // fallback, so an error names the service that failed. Speed wins: the whole video translates
+  // before you'd want it. One 50-line batch with the schema below, 2026-11-25: gemini-3.5-flash-lite
+  // 3.0 s, gemini-4-hydrogen 11 s at low thinking and 20 s at default, gemini-4-neon 19 s at low and
+  // 29 to 98 s at default. All returned 50 of 50 lines. The model is pinned, because the
+  // gemini-flash-lite-latest alias moved under us once. Without the schema, 3.5 Flash-Lite once put
+  // a stray "}" after the array and the batch came back blank; the schema makes the API return valid
+  // JSON. maxOutputTokens leaves room for a thinking model's tokens, which count against it.
+  // Requests and raw responses go to console.debug (Verbose).
   if (KEY === 'YOUR_GEMINI_API_KEY') { console.log('[yt] no KEY — 口語 + dictionary only.'); return; }
   const SCHEMA = { type: 'ARRAY', items: { type: 'OBJECT', properties: { i: { type: 'INTEGER' }, en: { type: 'STRING' } }, required: ['i', 'en'] } };
   const tr = async (texts, s) => {
