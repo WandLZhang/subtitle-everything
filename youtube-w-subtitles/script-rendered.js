@@ -66,6 +66,26 @@
   const r1 = document.createElement('div'); r1.append(zhEl);
   const r2 = document.createElement('div'); r2.append(enEl);
   box.append(r1, r2); player.appendChild(box);
+  // ⠿ tab above the subtitles: drag it to move them off whatever they cover. The position is a share
+  // of the player's size, so it holds through fullscreen. Pointer capture keeps the drag going outside
+  // the tab, and the tab eats its own clicks so YouTube doesn't pause or go fullscreen.
+  const grip = document.createElement('div'); grip.className = 'yt-grip'; grip.textContent = '⠿ drag'; grip.title = 'drag to move the subtitles';
+  grip.style.cssText = 'position:absolute;left:50%;top:-22px;transform:translateX(-50%);padding:1px 10px;border-radius:7px 7px 0 0;background:rgba(0,0,0,.6);color:#c9ccd1;font-size:12px;line-height:20px;cursor:move;user-select:none;touch-action:none;opacity:.6';
+  box.append(grip);
+  grip.onmouseenter = () => { grip.style.opacity = '1'; }; grip.onmouseleave = () => { grip.style.opacity = '.6'; };
+  for (const t of ['mousedown', 'click', 'dblclick']) grip.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); });
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); grip.setPointerCapture(e.pointerId);
+    const p = player.getBoundingClientRect(), r = box.getBoundingClientRect();
+    const x0 = r.left + r.width / 2 - p.left, b0 = p.bottom - r.bottom, sx = e.clientX, sy = e.clientY;
+    const move = ev => {
+      const cx = Math.min(p.width - r.width / 2, Math.max(r.width / 2, x0 + ev.clientX - sx));
+      const b = Math.min(p.height - r.height - 22, Math.max(0, b0 - (ev.clientY - sy)));
+      box.style.left = (cx / p.width * 100).toFixed(2) + '%'; box.style.bottom = (b / p.height * 100).toFixed(2) + '%';
+    };
+    const up = () => { grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); console.log(`[yt] subtitles moved: left ${box.style.left}, bottom ${box.style.bottom}`); };
+    grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  });
   const pop = document.createElement('div'); pop.id = 'yt-dict-pop';
   pop.style.cssText = 'position:fixed;z-index:2147483647;max-width:360px;padding:9px 12px;border-radius:8px;background:rgba(17,19,23,.97);color:#e8eaed;font-size:14px;line-height:1.45;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);display:none;text-align:left;font-family:"PingFang SC","Chiron Hei HK","Noto Sans SC",system-ui';
   document.body.appendChild(pop);
